@@ -130,7 +130,7 @@ The mechanics are inspired by Yakuza 0's real estate minigame. All characters, g
 - On return, a "While you were away" summary appears, styled as a flip-phone text message.
 
 ### Day and night
-- **24-minute game day:** 1 real minute = 1 game hour. Not tied to real time.
+- **12-minute game day (balance pass, 2026-11-16):** 30 real seconds = 1 game hour, so a 6-minute day and a 6-minute night. Not tied to real time.
 - **Lot income:** lots earn ×1.5 during their own phase and ×1 otherwise, never less. Offline income uses the ×1.25 average.
 
 ### Staff
@@ -170,7 +170,7 @@ Rivals periodically lean on your lots in their area.
   - Lieutenants hold some lots locked until you beat them.
 - **Claiming an area:** income in that area doubles, lots you don't own there yet cost 25% less, shakedowns stop there, the price index jumps by 10, and the boss joins your collection.
 - **Area twists:** Zhongshan's lots (all night businesses) earn ×2 at night instead of ×1.5. In East District one business type is "hot" and earns ×2; it rotates every game day (boutique → café → nightclub → department store).
-- **The price index** starts at 100 each run. It rises with buys and milestones and jumps on claims. It multiplies income and property values, drives Face at cash-out, and sets how many floors 101 has.
+- **The price index** starts at 100 each run. It rises with buys and milestones and jumps on claims. A buy or ×2 milestone moves it fully only in your newest open district; each district behind that moves it 100× less (their prices are 100× lower), so cheap old-district milestones are never the best buy late in a run. It multiplies income and property values, drives Face at cash-out, and sets how many floors 101 has.
 
 ### Income sources and Best buy (display only; no numbers changed)
 - **A lot's income = its base rate × four named sources**, used everywhere income is explained:
@@ -247,7 +247,7 @@ Steps 1–2 unlock during a run. Steps 3–4 are permanent Face upgrades, each w
     - **Commander selection:** choose Boss first (reserving scarce SSR cards), then Lieutenant, from legal **bench cards outside the army**. Prefer auras matching the style, then estimated aura/ultimate utility. Only if there is no legal bench commander, promote the least valuable legal army fighter by that style's fighting score, and only with a legal bench replacement for its army slot. Reorder the rows after backfilling. If no legal replacement exists, keep the fighter attacking and leave command empty.
     - **Measured gang suggestions:** Miaokou → All-around; Molong → Defensive (tied with All-around against the boss); Yuejian → All-around (tied with Defensive); Jin Tangchi → Offensive; Tongtian → Offensive (Defensive also performs strongly). These are suggestions for typical progression collections, not guarantees for every roster. The 300-seed style sweep has no 0% fills in any scenario; Offensive is still a weaker daytime choice against Molong and Yuejian bosses. Full before/after rates and lineups: [`battle-sim-results.md`](battle-sim-results.md).
 - **Home Turf:** +3% Grit to the whole army for each Security posted in that area; a local guard counts twice (+6% before Face upgrades). The prep modifier names the local count. This replaced the idea of a reinforcement bench.
-- **Prep screen:** tap a slot to pick a card (drag-and-drop later), or use one of the three fills. A matchup line names the rival's trick and suggests a fill (`MATCHUPS` in `content/fights.ts`). The fills are three evenly spaced, equal-width buttons with English names, brief descriptions and a visible Suggested label; the Chinese marks are decorative. It shows your power against the recommended power, every modifier, and a hint like "nightfall in 4 min".
+- **Prep screen:** tap a slot to pick a card (drag-and-drop later), or use one of the three fills. Every fill counts the time-of-day bonus for right now (gangsters at night, agents by day), so All-around is the strongest squad for when you fight. A matchup line names the rival's trick and suggests a fill, measured with `STYLES=1 npm run sim:fights` (`MATCHUPS` per district, `FIGHT_MATCHUPS` for lieutenants that differ: Ximending's Xiao Zhen wants All-around, Zhongshan's A-Jian wants Offensive). Current picks: Wanhua All-around, Ximending Offensive, Zhongshan All-around, East District All-around, Xinyi Offensive, Xindian Defensive. The fills are three evenly spaced, equal-width buttons with English names, brief descriptions and a visible Suggested label; the Chinese marks are decorative. It shows your power against the recommended power, every modifier, and a hint like "nightfall in 4 min".
 - **Odds, in words:** the prep screen runs 20 practice battles of your exact squad (same engine, fixed seeds, in small slices so phones don't stutter) and shows **Likely win** (70%+), **Even fight** (35–70%) or **Long shot**. If the other half of the day would rate better, it says so and when ("Likely win at night, in 4 min"). Displayed power stays as a rough guide only.
 - **After every fight, one line on what happened,** from the finished battle only: win time and crew lost, time running out, the front row falling, plus Tongtian's permit stacks or Miaokou's troupe runners when they mattered. The existing tips stay underneath after a loss.
 - A card can be posted at a lot and fight in the squad at the same time.
@@ -283,6 +283,8 @@ Steps 1–2 unlock during a run. Steps 3–4 are permanent Face upgrades, each w
 
 ### What changes the odds
 - **Time of day:** gangsters get +20% at night, agents +20% by day.
+- **Home times:** each gang gets the same +20% at its home time: Miaokou, Jin Tangchi, Tongtian and Xiaoxiao by day; Molong and Yuejian at night. The prep screen names it ("Molong Society is strongest at night: the scooter crews race after dark. That's now."). The opening A-Biao fight has no home time.
+- **Repelled shakedowns:** each one in a district this run makes that gang's next first-time fight there 2% weaker, up to 10%; the prep screen says so. The count resets after a first-time win there.
 - **Market share:** +4% to all stats for every 5% above the fight's threshold, so idle play can always win eventually.
 - **Underdog bonus:** extra Face for winning right at the threshold (arrives with Face in milestone 4).
 - **Same-faction bonus:** +5% for 2 crew from the same faction, +10% for 3 or more (Independents don't count).
@@ -408,7 +410,7 @@ No real money anywhere.
   | Temple Festival Year 遶境年 | Street events 2× as often; processions pay double | Playing actively |
   | Idol Drama Craze 偶像劇熱 | Walk-in recruits 2× as often | Collecting cards |
   | Stock Rally 股市狂飆 | Properties count 1.5× toward net worth, so more Face | Chasing Face |
-  | Rearmed Rivals 重整旗鼓 | Rivals 15% stronger (recommended power too); every first win pays double incense and +1 Face at cash-out | Fighting |
+  | Rearmed Rivals 重整旗鼓 | Rivals 5% stronger (recommended power too; lowered from 15% in the balance pass because fights are steep); every first win pays double incense and +1 Face at cash-out | Fighting |
 
 - **Commissions (委託):** three optional goals per run (run 1 included), drawn from the pool below. Each pays 1 lottery ticket the moment it's done, with a toast, so Face pacing is untouched. A goal that's already done when the run starts is never drawn. Shown in Office → This year with progress bars.
   - Win a Turf War with only agents in your squad (commanders included).
@@ -547,16 +549,12 @@ Turf Wars launch from an area screen.
 - **Light story only (decided 2026-11-16):** keep the rough story already in §1 (the arc, bosses' last lines pointing at Xiaoxiao, the Xindian ending), but no exposition: no story texts, no dialogue scenes, nothing players have to read. The improvement pass's "story beats" section was dropped.
 - Xindian implementation is complete locally; new art needs review and the browser walkthrough remains pending.
 - Balancing after playtests (`npm run sim` and `npm run sim:fights` hold the current targets)
-- **Planned balance pass (decided, done together later):**
-  - **Repelled shakedowns weaken the gang (approved, waits for this pass):** each shakedown repelled in a district this run makes that gang’s next first-time fight there 2% weaker, up to 10%; the prep screen names it (“Your guards ran off 4 Molong shakedowns: Molong is 8% weaker”).
-  - **Tune Locals (×1.25, ×2) and fortune rates.**
-  - Rival **home times**: a gang gets the same +20% as your crew at its home time. Miaokou day, Molong night, Yuejian night, Jin Tangchi day, Tongtian day. The prep screen names it ("Yuejian is strongest at night").
-  - **Shorter day/night:** 6 minutes of day, 6 of night.
-  - **Re-tune** so the expected squad wins about 70% at a gang's off-time and about 45% at its home time.
-  - **Fill balance:** Defensive currently matches or beats All-around everywhere; Offensive is a trap in a few fights.
-  - **Price index vs. milestones:** late in a run, a cheap lot's ×2 milestone adds far more through the index (+0.25, lifting all income) than the lot earns, so Best buy points at cheap milestones in early districts. Decide whether that's intended (for example, scale the index gain with the lot's price).
-  - **Flagship district (idea):** each run, one district's twist gets stronger, so where you invest becomes a real choice instead of buying everything.
-  - **Headlines and commissions:** check each headline's pull (does any one dominate?), Rearmed Rivals' strength against its Face, and whether "Claim Ximending within 2 hours" and "price index 130" fit run 1.
+- **Balance pass (2026-11-16):**
+  - **Done:** the 6-minute day and night; rival home times (+20%, with the tutorial fight exempt); repelled shakedowns weakening the gang; district-weighted price-index gains; Standing Orders buying the most valuable unowned lot it can afford first. Every fight re-tuned (`TUNE=1 npm run sim:fights`) to about 70% wins for the expected squad at the gang's off-time.
+  - **Home-time difficulty (decided: keep it decisive).** Fights are nearly deterministic (+3% rival strength takes a 70% fight to about 33%), so at a gang's home time the expected squad is a long shot until it's a few levels stronger. That's intended: every gang has a clear right time, it isn't always night, and the wait is at most 6 minutes. The odds line names the better time.
+  - **Fill balance (done):** fills now count the time-of-day bonus, All-around is the tuning baseline (about 70% at the off-time for the expected squad), and each style is best somewhere: All-around against East District and Xiao Zhen, Offensive against Ximending's boss, A-Jian, Xinyi and Xindian, Defensive ties in Wanhua, Zhongshan and Xindian. Offensive is a poor pick against Zhongshan and East District, and the matchup hints say so.
+  - **Values checked:** Rearmed Rivals lowered to +5% (at +15% it walled off every fight); Locals, the fortune, the other headlines, commissions and Standing Orders' half share stay as they are.
+  - **Idea:** a flagship district each run, whose twist gets stronger, so where you invest becomes a real choice.
 - Notoriety levels (after a playtest)
 - Sound (later)
 - Database and auth provider (milestone 5)

@@ -3,7 +3,7 @@ import { auraOf, unitPower, type BattleInput, type UnitSpec } from './battle';
 import { addXp, classOf, statsOf, type Stats } from './characters';
 import { ALL_LOTS, AREAS } from './content/areas';
 import { CHARACTERS, ROLES } from './content/characters';
-import { FIGHTS, type EnemyDef, type FightDef } from './content/fights';
+import { FIGHTS, HOME_TIME, type EnemyDef, type FightDef } from './content/fights';
 import { skillOf, type AuraKind } from './content/skills';
 import {
   BOSS_SLOT,
@@ -16,6 +16,8 @@ import {
   LT_SLOT,
   PHASE_BONUS,
   REARMED_INCENSE_MULT,
+  SHAKEDOWN_WEAKEN,
+  SHAKEDOWN_WEAKEN_MAX,
   SHARE_BONUS_PER_STEP,
   SHARE_THRESHOLDS,
   REMATCH_COOLDOWN_MS,
@@ -109,23 +111,32 @@ const AURA_VALUE: Record<AuraKind, number> = {
   old_money: 30, rave: 20, lucky_streak: 25,
 };
 
-function styleScore(state: GameState, id: string, style: SquadStyle): number {
+/** The time-of-day bonus a card would get in a fight now: gangsters at night, agents by day. */
+function phaseEdge(id: string, phase?: Phase): number {
+  if (!phase) return 1;
+  return classOf(id) === (phase === 'night' ? 'gangster' : 'agent') ? 1 + PHASE_BONUS : 1;
+}
+
+function styleScore(state: GameState, id: string, style: SquadStyle, phase?: Phase): number {
   // Summon is especially valuable as a commander aura; it is less frequent
   // as an army skill, so raw stats overstate the summoner's fighting value.
   const skill = skillOf(id).kind;
   const armySkill = skill === 'summon' ? 0.65 : 1;
-  if (style === 'balanced') return basePower(state, id) * armySkill;
+  // Every fill counts the time-of-day bonus for when you're fighting, so All-around really is
+  // the strongest squad for right now (gangsters at night, agents by day).
+  const edge = phaseEdge(id, phase);
+  if (style === 'balanced') return basePower(state, id) * armySkill * edge;
   const st = statsOf(id, state.characters[id]);
   const raw = style === 'offense' ? st.muscle * 1.6 + st.grit * 0.6 + st.business * 0.8 : st.muscle * 0.9 + st.grit * 1.3 + st.business * 0.8;
-  return raw * (STYLE_ROLE[style][CHARACTERS[id]!.role!] ?? 1) * armySkill;
+  return raw * (STYLE_ROLE[style][CHARACTERS[id]!.role!] ?? 1) * armySkill * edge;
 }
 
 /** A legal squad in the given style: army first, then commanders (swapping a card back if that fills more slots). */
-export function bestSquad(state: GameState, style: SquadStyle = 'balanced'): Squad {
+export function bestSquad(state: GameState, style: SquadStyle = 'balanced', phase?: Phase): Squad {
   const squad: Squad = Array<string | null>(SQUAD_SIZE).fill(null);
   const owned = Object.keys(state.characters)
     .filter((id) => CHARACTERS[id]?.role)
-    .sort((a, b) => styleScore(state, b, style) - styleScore(state, a, style));
+    .sort((a, b) => styleScore(state, b, style, phase) - styleScore(state, a, style, phase));
   const used = new Set<string>();
   // Compare legal front-row combinations, then take the best remaining back
   // row. Flexible runners compete on score rather than always coming last.
@@ -143,7 +154,7 @@ export function bestSquad(state: GameState, style: SquadStyle = 'balanced'): Squ
     if (needsAnchor && !front.some((id) => CHARACTERS[id]!.role === 'weishi' || CHARACTERS[id]!.rarity === 'SSR')) continue;
     const back = owned.filter((id) => !front.includes(id) && canFill(id, 2)).slice(0, backSlots.length);
     const ids = [...front, ...back];
-    const score = ids.reduce((sum, id) => sum + styleScore(state, id, style), 0);
+    const score = ids.reduce((sum, id) => sum + styleScore(state, id, style, phase), 0);
     if (ids.length > army.count || (ids.length === army.count && score > army.score)) army = { front, back, count: ids.length, score };
   }
   for (const [ids, slots] of [[army.front, frontSlots], [army.back, backSlots]] as const) {
@@ -181,7 +192,7 @@ export function bestSquad(state: GameState, style: SquadStyle = 'balanced'): Squ
       const sub = owned.find((b) => !used.has(b) && canFill(b, from));
       return sub ? [{ id, from, sub }] : [];
     });
-    promotions.sort((a, b) => styleScore(state, a.id, style) - styleScore(state, b.id, style) || commandScore(b.id) - commandScore(a.id));
+    promotions.sort((a, b) => styleScore(state, a.id, style, phase) - styleScore(state, b.id, style, phase) || commandScore(b.id) - commandScore(a.id));
     const promoted = promotions[0];
     if (promoted) {
       squad[cmd] = promoted.id;
@@ -196,7 +207,7 @@ export function bestSquad(state: GameState, style: SquadStyle = 'balanced'): Squ
     const ids = slots.map((slot) => squad[slot]).filter((id): id is string => !!id);
     const rowScore = (id: string) => style !== 'offense' && slots === ARMY_BACK
       ? (statsOf(id, state.characters[id]).muscle + (style === 'defense' ? statsOf(id, state.characters[id]).business * 0.2 : 0)) * (skillOf(id).kind === 'summon' ? 0.65 : 1)
-      : styleScore(state, id, style);
+      : styleScore(state, id, style, phase);
     ids.sort((a, b) => rowScore(b) - rowScore(a));
     slots.forEach((slot, i) => { squad[slot] = ids[i] ?? null; });
   }
@@ -222,8 +233,9 @@ export function setSquadSlot(state: GameState, slot: number, charId: string | nu
 }
 
 /** One-tap fill in a style. It sets the squad once; nothing re-fills it later. */
-export function fillSquad(state: GameState, style: SquadStyle): GameState {
-  return { ...state, squad: bestSquad(state, style) };
+/** One-tap fill. Pass the phase you'll fight in, so the fill counts the time-of-day bonus. */
+export function fillSquad(state: GameState, style: SquadStyle, phase?: Phase): GameState {
+  return { ...state, squad: bestSquad(state, style, phase) };
 }
 
 /**
@@ -338,10 +350,36 @@ function enemySpec(fight: FightDef, e: EnemyDef, rearmed = 1): UnitSpec {
 }
 
 /** The rival side. Pass the state so this run's headline (Rearmed Rivals) applies. */
-export function buildTheirSide(fight: FightDef, state?: GameState): SideBuild {
-  const k = state ? news.rivalMult(state) : 1;
+/** True when it's the gang's home time: its fighters get the same +20% your crew gets. */
+export function atHome(fight: FightDef, phase: Phase): boolean {
+  return homeTimeOf(fight)?.phase === phase;
+}
+
+/** The gang's home time for this fight. The opening fight has none: it teaches fighting right after your first purchase. */
+export function homeTimeOf(fight: FightDef): { phase: Phase; why: string } | undefined {
+  if (fight.id === 'wanhua_lt1') return undefined;
+  return HOME_TIME[AREAS[fight.area].rival];
+}
+
+/** How much weaker the gang is for this first-time fight, from shakedowns repelled in its district this run. */
+export function shakedownWeakening(state: GameState, fight: FightDef): number {
+  if (!isFirstWin(state, fight)) return 0;
+  return Math.min(SHAKEDOWN_WEAKEN_MAX, (state.run.repelled?.[fight.area] ?? 0) * SHAKEDOWN_WEAKEN);
+}
+
+/**
+ * The rival side. Pass the state for this run's headline (Rearmed Rivals) and repelled shakedowns,
+ * and the phase for the gang's home time.
+ */
+export function buildTheirSide(fight: FightDef, state?: GameState, phase?: Phase): SideBuild {
+  const k = theirMult(fight, state, phase);
   const specs = fight.units.map((e) => enemySpec(fight, e, k));
   return { specs, mods: [], power: specs.reduce((s, u) => s + unitPower(u), 0) };
+}
+
+function theirMult(fight: FightDef, state?: GameState, phase?: Phase): number {
+  const home = phase && atHome(fight, phase) ? 1 + PHASE_BONUS : 1;
+  return (state ? news.rivalMult(state) * (1 - shakedownWeakening(state, fight)) : 1) * home;
 }
 
 export function recommendedPower(fight: FightDef, state?: GameState): number {
@@ -351,7 +389,7 @@ export function recommendedPower(fight: FightDef, state?: GameState): number {
 export function battleInputFor(state: GameState, fightId: string, phase: Phase): BattleInput {
   const fight = FIGHTS[fightId]!;
   const you = buildYourSide(state, fight, phase);
-  const them = buildTheirSide(fight, state);
+  const them = buildTheirSide(fight, state, phase);
   const kunbo = you.specs.find((s) => s.charId === 'kun_bo' && s.slot >= 5);
   return {
     you: you.specs,
@@ -360,7 +398,7 @@ export function battleInputFor(state: GameState, fightId: string, phase: Phase):
     night: phase === 'night',
     boost: { ultCharge: perk.ultCharge(state), startCharge: perk.warmUp(state) },
     runner: {
-      them: fight.runner ? enemySpec(fight, fight.runner, news.rivalMult(state)) : undefined,
+      them: fight.runner ? enemySpec(fight, fight.runner, theirMult(fight, state, phase)) : undefined,
       // Your own Kun-bo calls in agency runners.
       you: kunbo ? { ...enemySpec(fight, { id: 'street_punk', level: kunbo.level, slot: -1, grunt: true }), name: 'Troupe Runner', nameZh: '陣頭', faction: 'agency' } : undefined,
     },
@@ -461,6 +499,8 @@ export function resolveFight(state: GameState, fightId: string, outcome: 'win' |
   }
 
   result.incense = Math.round(fight.rewards.incense * perk.incenseMult(state) * (headlineIs(state, 'rearmed') ? REARMED_INCENSE_MULT : 1));
+  // The shakedowns that weakened this gang are spent; the next fight here starts counting again.
+  s = { ...s, run: { ...s.run, repelled: { ...s.run.repelled, [fight.area]: 0 } } };
   result.lottery = fight.rewards.lottery;
   result.claimed = fight.key === 'boss';
   const share = marketShare(state, fight.area);

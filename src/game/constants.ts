@@ -10,8 +10,8 @@ export const UPGRADE_BASE = 1.0;
 /** Income doubles at each of these levels. */
 export const MILESTONES = [10, 25, 50, 100] as const;
 
-/** 1 real minute = 1 game hour. Day is 06:00–18:00. */
-export const GAME_HOUR_MS = 60_000;
+/** 30 real seconds = 1 game hour, so a 6-minute day (06:00–18:00) and a 6-minute night. */
+export const GAME_HOUR_MS = 30_000;
 export const DAY_START = 6;
 export const NIGHT_START = 18;
 export const IN_PHASE_MULT = 1.5;
@@ -56,6 +56,9 @@ export const BOSS_SLOT = 6;
 
 /** Gangsters are stronger at night, agents by day. */
 export const PHASE_BONUS = 0.2;
+/** Repelled shakedowns weaken that gang's next first-time fight in the district: this much each, up to the cap. */
+export const SHAKEDOWN_WEAKEN = 0.02;
+export const SHAKEDOWN_WEAKEN_MAX = 0.1;
 /** Stat bonus for every full 5% of market share above the fight's threshold. */
 export const SHARE_BONUS_PER_STEP = 0.04;
 /** Home Turf: Grit bonus per Security posted in the fight's area. */
@@ -115,7 +118,7 @@ export const FESTIVAL_PROCESSION_MULT = 2;
 export const IDOL_RECRUIT_MULT = 2;
 /** Stock Rally: properties count this much toward net worth (and so Face). */
 export const STOCK_RALLY_PROPERTY = 1.5;
-export const REARMED_STRENGTH = 1.15;
+export const REARMED_STRENGTH = 1.05;
 export const REARMED_FACE_PER_WIN = 1;
 export const REARMED_INCENSE_MULT = 2;
 

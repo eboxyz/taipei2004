@@ -6,7 +6,7 @@
 import { runBattle } from '../src/game/battle';
 import { FIGHTS } from '../src/game/content/fights';
 import { initialState } from '../src/game/state';
-import { battleInputFor, buildYourSide, fillSquad, recommendedPower } from '../src/game/turf';
+import { battleInputFor, buildYourSide, fillSquad, homeTimeOf, recommendedPower } from '../src/game/turf';
 import type { GameState, Phase, SquadStyle } from '../src/game/types';
 
 const N = Number(process.env.N ?? 400);
@@ -75,27 +75,33 @@ const scenarios: { fight: string; label: string; state: GameState }[] = [
 ];
 
 const only = process.env.ONLY;
+/** The gang's home time (it gets +20%) and its off-time (the opening). */
+const homeOf = (fightId: string): Phase => homeTimeOf(FIGHTS[fightId]!)?.phase ?? 'night';
+const offOf = (fightId: string): Phase => (homeOf(fightId) === 'day' ? 'night' : 'day');
+const label = (fightId: string, phase: Phase) => `${phase}${homeOf(fightId) === phase ? ' (home)' : ' (off)'}`;
 for (const sc of scenarios.filter((x) => !only || x.fight.startsWith(only))) {
   const fight = FIGHTS[sc.fight]!;
   if (process.env.STYLES) {
     console.log(`${sc.fight} | ${sc.label} | N=${N}`);
     for (const style of styles) {
-      const state = fillSquad(sc.state, style);
       const rates = (['day', 'night'] as Phase[]).map((phase) => {
+        // The fill is made for the phase you fight in, as the prep screen does.
+        const state = fillSquad(sc.state, style, phase);
         const input = battleInputFor(state, sc.fight, phase);
         let wins = 0;
         for (let seed = 1; seed <= N; seed++) if (runBattle(input, seed).outcome === 'win') wins++;
-        return `${phase} ${(100 * wins / N).toFixed(1)}%`;
+        return `${label(sc.fight, phase)} ${(100 * wins / N).toFixed(1)}%`;
       });
-      console.log(`    ${style.padEnd(8)} ${rates.join(' | ')} | ${state.squad.map((id, slot) => `${slot}:${id ?? '-'}`).join(' ')}`);
+      console.log(`    ${style.padEnd(8)} ${rates.join(' | ')}`);
     }
     continue;
   }
   const rec = recommendedPower(fight);
   const row: string[] = [];
   for (const phase of ['day', 'night'] as Phase[]) {
-    const power = buildYourSide(sc.state, fight, phase).power;
-    const input = battleInputFor(sc.state, sc.fight, phase);
+    const state = fillSquad(sc.state, 'balanced', phase);
+    const power = buildYourSide(state, fight, phase).power;
+    const input = battleInputFor(state, sc.fight, phase);
     let wins = 0;
     let tWin = 0;
     let tAll = 0;
@@ -107,22 +113,25 @@ for (const sc of scenarios.filter((x) => !only || x.fight.startsWith(only))) {
         tWin += r.t;
       }
     }
-    row.push(`${phase}: power ${power} → win ${Math.round((wins / N) * 100)}% (${wins ? Math.round(tWin / wins) : '-'}s, avg ${Math.round(tAll / N)}s)`);
+    row.push(`${label(sc.fight, phase)}: power ${power} → win ${Math.round((wins / N) * 100)}% (${wins ? Math.round(tWin / wins) : '-'}s, avg ${Math.round(tAll / N)}s)`);
   }
   console.log(`${sc.fight.padEnd(12)} rec ${String(rec).padStart(4)} | ${sc.label}\n    ${row.join('\n    ')}`);
 }
 
-// TUNE=1: binary-search each fight's strength so its first (expected) squad wins ~60% by day.
+// TUNE=1: binary-search each fight's strength so its first (expected) squad wins ~TARGET (default 70%)
+// at the gang's off-time, then report the win rate at its home time (aim: about 45%).
 if (process.env.TUNE) {
+  const target = Number(process.env.TARGET ?? 0.7);
   const seen = new Set<string>();
-  console.log('\nTuned strengths (day win ≈ 60% for the expected squad):');
+  const out: Record<string, number> = {};
+  console.log(`\nTuned strengths (off-time win ≈ ${Math.round(target * 100)}% for the expected squad):`);
   for (const sc of scenarios.filter((x) => !only || x.fight.startsWith(only))) {
     if (seen.has(sc.fight)) continue;
     seen.add(sc.fight);
     const fight = FIGHTS[sc.fight]!;
-    const rate = (k: number) => {
+    const rate = (k: number, phase: Phase) => {
       fight.strength = k;
-      const input = battleInputFor(sc.state, sc.fight, 'day');
+      const input = battleInputFor(fillSquad(sc.state, 'balanced', phase), sc.fight, phase);
       let w = 0;
       for (let seed = 1; seed <= N; seed++) if (runBattle(input, seed).outcome === 'win') w++;
       return w / N;
@@ -131,13 +140,14 @@ if (process.env.TUNE) {
     let hi = fight.area === 'xindian' ? 8 : 4;
     for (let i = 0; i < 12; i++) {
       const mid = (lo + hi) / 2;
-      if (rate(mid) > 0.6) lo = mid;
+      if (rate(mid, offOf(sc.fight)) > target) lo = mid;
       else hi = mid;
     }
     const k = Number(((lo + hi) / 2).toFixed(3));
-    fight.strength = k;
-    const power = buildYourSide(sc.state, fight, 'day').power;
-    const r = runBattle(battleInputFor(sc.state, sc.fight, 'day'), 1);
-    console.log(`  ${sc.fight.padEnd(15)} strength ${k}  expected power ${power}  (~${Math.round(r.t)}s)`);
+    out[sc.fight] = k;
+    const off = rate(k, offOf(sc.fight));
+    const home = rate(k, homeOf(sc.fight));
+    console.log(`  ${sc.fight.padEnd(15)} strength ${k}  off-time ${Math.round(off * 100)}%  home ${Math.round(home * 100)}%`);
   }
+  if (process.env.JSON) console.log(`JSON ${JSON.stringify(out)}`);
 }

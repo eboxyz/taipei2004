@@ -5,7 +5,7 @@ import { AREAS } from './content/areas';
 import { FACE_BY_ID } from './content/face';
 import { drawCommissions } from './commissions';
 import { FACE_DIVISOR, FACE_PER_CLAIM, FACE_PER_UNDERDOG, INDEX_PER_LOT, INDEX_PER_MILESTONE, REARMED_FACE_PER_WIN, START_CASH } from './constants';
-import { milestonesCrossed, upgradeCostN } from './economy';
+import { indexGain, milestonesCrossed, upgradeCostN } from './economy';
 import { drawOffers, headlineIs } from './headlines';
 import { faceLevel, perk } from './perks';
 import type { Rng } from './rng';
@@ -85,7 +85,7 @@ export function startRun(state: GameState): GameState {
     for (const lot of AREAS.wanhua.lots.filter((l) => !l.lock).slice(0, n)) {
       const invested = lot.price + upgradeCostN(s, lot, 1, 9);
       lots[lot.id] = { level: 10, invested };
-      index += (INDEX_PER_LOT + milestonesCrossed(1, 10).length * INDEX_PER_MILESTONE) * perk.indexMult(s);
+      index += indexGain(s, lot, INDEX_PER_LOT + milestonesCrossed(1, 10).length * INDEX_PER_MILESTONE);
     }
     s = { ...s, lots, index, stats: { ...s.stats, lotsBought: s.stats.lotsBought + n } };
   }

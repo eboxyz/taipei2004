@@ -15,6 +15,7 @@ import {
   incomeBreakdown,
   incomeOf,
   incomePerSec,
+  indexGain,
   isAreaOpen,
   isLotLocked,
   milestoneMult,
@@ -24,7 +25,6 @@ import {
   upgradeCostN,
   type IncomeBreakdown,
 } from './economy';
-import { perk } from './perks';
 import type { AreaId, GameState, LotDef } from './types';
 
 export type SourceId = 'lot' | 'time' | 'people' | 'reputation';
@@ -96,9 +96,9 @@ function lotBuys(state: GameState, lot: LotDef, total: number): Buy[] {
     const lift = (indexUp / state.index) * (total - own + after);
     return { lotId: lot.id, kind: from === 0 ? 'buy' : 'upgrade', fromLevel: from, toLevel: to, cost, gain: after - own + lift, fromIndex: lift };
   };
-  if (!ls) return [make(1, buyPrice(state, lot), INDEX_PER_LOT * perk.indexMult(state))];
+  if (!ls) return [make(1, buyPrice(state, lot), indexGain(state, lot, INDEX_PER_LOT))];
   const step = (to: number) =>
-    make(to, upgradeCostN(state, lot, from, to - from), milestonesCrossed(from, to).length * INDEX_PER_MILESTONE * perk.indexMult(state));
+    make(to, upgradeCostN(state, lot, from, to - from), indexGain(state, lot, milestonesCrossed(from, to).length * INDEX_PER_MILESTONE));
   const next = nextMilestone(from);
   return next && next > from + 1 ? [step(from + 1), step(next)] : [step(from + 1)];
 }

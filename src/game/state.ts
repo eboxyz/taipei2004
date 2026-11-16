@@ -37,7 +37,7 @@ function blankState(now: number): GameState {
     zodiac: null,
     draws: { templePity: 0, lotteryPity: 0, lastFreeTemple: null, fortune: null, count: { scratch: 0, temple: 0, lottery: 0 } },
     binderPaid: [],
-    run: { accountant: false, claims: 0, underdog: 0, startedAt: now, headline: null, offers: [], commissions: [], events: 0, agentWin: false },
+    run: { accountant: false, claims: 0, underdog: 0, startedAt: now, headline: null, offers: [], commissions: [], events: 0, agentWin: false, repelled: {} },
     meta: { safeHours: START_SAFE_HOURS, face: 0, faceTotal: 0, squadSlots: 3, runs: 0, chapterClears: 0, xindianClears: 0, upgrades: {}, claimedEver: [] },
     auto: { orders: false, focus: false, budget: 0, staff: false, placed: [], rosterSeen: 0 },
     cooldowns: {},

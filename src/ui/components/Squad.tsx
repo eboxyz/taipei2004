@@ -3,7 +3,9 @@ import { useState } from 'react';
 import { auraOf } from '../../game/battle';
 import { AREAS } from '../../game/content/areas';
 import { CHARACTERS, ROLES } from '../../game/content/characters';
-import { FIGHTS, MATCHUPS } from '../../game/content/fights';
+import { FIGHTS, MATCHUPS, matchupFor } from '../../game/content/fights';
+import { phaseAt } from '../../game/clock';
+import { gameNow } from '../time';
 import { AURA_TEXT, skillOf } from '../../game/content/skills';
 import { basePower, canFill, effectiveSquad, fillSquad, setSquadSlot, slotKind, slotUnlocked, SQUAD_STYLES, type SlotKind } from '../../game/turf';
 import type { AreaId, GameState, SquadStyle } from '../../game/types';
@@ -147,12 +149,15 @@ function SlotPicker({ slot, onClose }: { slot: number; onClose: () => void }) {
 }
 
 /** The 7-slot squad: front row, back row, commanders. Tap a slot to change who stands there. */
-/** The squad editor, on the Crew tab and on Turf War prep (where `area` adds a matchup hint). */
-export function SquadBoard({ area }: { area?: AreaId }) {
+/**
+ * The squad editor, on the Crew tab and on Turf War prep (where `fightId` adds that fight's matchup hint).
+ * Fills count the time-of-day bonus for right now.
+ */
+export function SquadBoard({ area, fightId }: { area?: AreaId; fightId?: string }) {
   const s = useGame();
   const squad = effectiveSquad(s);
   const [pick, setPick] = useState<number | null>(null);
-  const matchup = area ? MATCHUPS[area] : undefined;
+  const matchup = fightId ? matchupFor(fightId) : area ? MATCHUPS[area] : undefined;
   const row = (slots: number[], label: string) => (
     <div className="squad-row" data-row={label}>
       <span className="squad-row-label">{label}</span>
@@ -186,7 +191,7 @@ export function SquadBoard({ area }: { area?: AreaId }) {
             data-suggested={matchup?.style === style}
             aria-label={`Fill ${SQUAD_STYLES[style].name} squad${matchup?.style === style ? ' (suggested for this rival)' : ''}`}
             title={SQUAD_STYLES[style].text}
-            onClick={() => { update((st) => fillSquad(st, style)); track('squad_fill_selected', { style }); }}
+            onClick={() => { update((st) => fillSquad(st, style, phaseAt(gameNow()))); track('squad_fill_selected', { style }); }}
           >
             <span className="squad-fill-badge">{matchup?.style === style ? 'Suggested' : 'One-tap fill'}</span>
             <span className="squad-fill-name">{SQUAD_STYLES[style].name}</span>

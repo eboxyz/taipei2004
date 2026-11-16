@@ -8,7 +8,7 @@ import { classOf, statsOf } from '../../game/characters';
 import { gameHour, phaseAt } from '../../game/clock';
 import { perk } from '../../game/perks';
 import { hotCategory } from '../../game/tick';
-import { LOCAL_GUARD_WEIGHT, LOCAL_MANAGER_MULT, SHARE_THRESHOLDS } from '../../game/constants';
+import { GAME_HOUR_MS, LOCAL_GUARD_WEIGHT, LOCAL_MANAGER_MULT, SHARE_THRESHOLDS } from '../../game/constants';
 import { fightFor } from '../../game/content/fights';
 import {
   buyPrice,
@@ -139,7 +139,8 @@ function AreaTwist({ area }: { area: AreaId }) {
   const s = useGame();
   const now = useNow(1000);
   const hot = area === 'east' ? CATEGORIES[s.hot ?? hotCategory(now)] : null;
-  const minsLeft = Math.ceil(24 - gameHour(now));
+  // The hot type rotates every game day.
+  const minsLeft = Math.ceil(((24 - gameHour(now)) * GAME_HOUR_MS) / 60_000);
   return (
     <>
       {hot ? (

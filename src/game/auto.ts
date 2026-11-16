@@ -80,18 +80,26 @@ function stepCost(s: GameState, b: Buy): number {
 }
 
 /**
- * What Standing Orders buys next. It waits for the best buy only when the budget will cover it
- * within ORDERS_WAIT_S seconds; otherwise it takes the best one it can afford now, so it never
- * sits idle for minutes while good cheaper buys go by. `ready` says whether it can buy right now.
+ * What Standing Orders buys next. New lots first: the most valuable unowned lot it can afford.
+ * Then the best buy, waiting for it only when the budget will cover it within ORDERS_WAIT_S seconds;
+ * otherwise the best one it can afford now, so it never sits idle for minutes.
+ * `ready` says whether it can buy right now.
  */
 export function ordersPick(state: GameState): { buy: Buy; ready: boolean } | null {
   const options = buyOptions(state, ordersScope(state).lots);
   const best = options[0];
   if (!best) return null;
   const wallet = Math.min(state.auto.budget, state.cash);
+  const rate = incomePerSec(state, 'average') * ORDERS_SHARE;
+  // New lots come first: the most valuable one it can afford. If none is affordable yet but the
+  // cheapest is close, it saves for that; otherwise it keeps upgrading meanwhile.
+  const lots = options.filter((o) => o.kind === 'buy');
+  const affordable = lots.filter((o) => o.cost <= wallet).sort((p, q) => q.cost - p.cost)[0];
+  if (affordable) return { buy: affordable, ready: true };
+  const nearest = [...lots].sort((p, q) => p.cost - q.cost)[0];
+  if (nearest && rate > 0 && (nearest.cost - wallet) / rate <= ORDERS_WAIT_S) return { buy: nearest, ready: false };
   const cost = stepCost(state, best);
   if (cost <= wallet) return { buy: best, ready: true };
-  const rate = incomePerSec(state, 'average') * ORDERS_SHARE;
   if (rate > 0 && (cost - wallet) / rate <= ORDERS_WAIT_S) return { buy: best, ready: false };
   const now = options.find((o) => stepCost(state, o) <= wallet);
   return now ? { buy: now, ready: true } : { buy: best, ready: false };

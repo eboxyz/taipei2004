@@ -3,7 +3,7 @@ import { assignStaff, buyLot, collectSafe, upgradeLot } from './actions';
 import { ALL_LOTS, AREAS } from './content/areas';
 import { addXp, statsOf, xpToNext } from './characters';
 import { phaseAt } from './clock';
-import { MILESTONES, UPGRADE_GROWTH } from './constants';
+import { MILESTONES, UPGRADE_GROWTH, GAME_HOUR_MS } from './constants';
 import {
   incomePerSec,
   isLotLocked,
@@ -195,9 +195,11 @@ describe('staff and shakedowns', () => {
 
 describe('clock', () => {
   it('flips between day and night', () => {
-    expect(phaseAt(12 * 60_000)).toBe('day');
-    expect(phaseAt(20 * 60_000)).toBe('night');
-    expect(phaseAt(3 * 60_000)).toBe('night');
+    expect(phaseAt(12 * GAME_HOUR_MS)).toBe('day');
+    expect(phaseAt(20 * GAME_HOUR_MS)).toBe('night');
+    expect(phaseAt(3 * GAME_HOUR_MS)).toBe('night');
+    // A 6-minute day and a 6-minute night.
+    expect(12 * GAME_HOUR_MS).toBe(6 * 60_000);
   });
 });
 

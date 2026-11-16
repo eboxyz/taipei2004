@@ -178,10 +178,10 @@ describe('automation', () => {
     auto: { ...s.auto, orders: true, budget },
   });
 
-  it('Standing Orders buys new lots too: the best buy anywhere', () => {
+  it('Standing Orders buys new lots first: the most valuable one it can afford', () => {
+    // NT$10萬 covers the snack stall (2萬) or the herb shop (8.5萬): it takes the herb shop.
     const r = standingOrders(orders({ ...initialState(NOW), cash: 1e5 }, 1e5));
-    expect(Object.keys(r.state.lots)).toContain('w1');
-    expect(r.events[0]).toEqual({ kind: 'auto-bought', lotId: 'w1' });
+    expect(r.events[0]).toEqual({ kind: 'auto-bought', lotId: 'w2' });
   });
 
   it('Standing Orders only spends its budget: half of what you earn', () => {

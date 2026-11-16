@@ -69,6 +69,8 @@ export function resolveShakedown(state: GameState, rng: Rng): { state: GameState
       runEarned: s.runEarned + bonus,
       currencies: scratch ? { ...s.currencies, scratch: s.currencies.scratch + 1 } : s.currencies,
       stats: { ...s.stats, shakedownsRepelled: repelled, shakedownBonus: s.stats.shakedownBonus + bonus },
+      // Each one weakens this gang's next first-time fight in the district.
+      run: { ...s.run, repelled: { ...s.run.repelled, [lot.area]: (s.run.repelled?.[lot.area] ?? 0) + 1 } },
     };
     events.unshift({ kind: 'shakedown-repelled', lotId, charId: guard, bonus, scratch });
   } else {

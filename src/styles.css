@@ -5350,3 +5350,27 @@ textarea.save-box {
 .twist.orders-focus {
   border-color: var(--warm);
 }
+
+/* Turf War prep: the gang's home time and repelled-shakedown weakening. */
+.rival .rival-home,
+.rival .rival-weak {
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.rival .rival-home[data-now='true'],
+.rival .rival-weak {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 6px;
+  background: rgba(18, 12, 46, 0.85);
+}
+
+.rival .rival-home[data-now='true'] {
+  color: var(--warm);
+}
+
+.rival .rival-weak {
+  color: #7ff0b0;
+}

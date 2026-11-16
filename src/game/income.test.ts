@@ -52,7 +52,8 @@ describe('best buy', () => {
 
 describe('Standing Orders', () => {
   // w1's next level is the cheapest upgrade, but w2's step to Lv 10 adds far more per NT$.
-  const levels = { w1: 10, w2: 9 };
+  // Every other buyable Wanhua lot is owned, so buying new lots (which comes first) doesn't apply.
+  const levels = { w1: 10, w2: 9, w3: 1, w4: 1, w5: 1, w6: 1 };
 
   it('takes the best buy, not the cheapest upgrade', () => {
     // Enough for w2's step to Lv 10, or for w1's next level, but not both.

@@ -22,6 +22,8 @@ import {
   isFirstWin,
   recommendedPower,
   rematchCooldown,
+  shakedownWeakening,
+  homeTimeOf,
   resolveFight,
   type FightResult,
 } from '../../game/turf';
@@ -68,7 +70,10 @@ function Prep({ fight, phase, onFight, onQuick }: { fight: FightDef; phase: Phas
   const s = useGame();
   useNow(1000);
   const you = buildYourSide(s, fight, phase);
-  const them = buildTheirSide(fight, s);
+  const them = buildTheirSide(fight, s, phase);
+  const home = homeTimeOf(fight);
+  const weak = shakedownWeakening(s, fight);
+  const repelled = s.run.repelled?.[fight.area] ?? 0;
   const rec = recommendedPower(fight, s);
   const rearmed = headlineIs(s, 'rearmed');
   const ratio = you.power / rec;
@@ -111,6 +116,17 @@ function Prep({ fight, phase, onFight, onQuick }: { fight: FightDef; phase: Phas
                   : ' · rematches pay XP and a scratch card'
                 : ''}
             </p>
+            {home && (
+              <p className="rival-home" data-now={home.phase === phase}>
+                {home.phase === 'day' ? '☀' : '🌙'} {rival.name} is strongest {home.phase === 'day' ? 'by day' : 'at night'}: {home.why}.
+                {home.phase === phase ? ' That’s now.' : ''}
+              </p>
+            )}
+            {weak > 0 && (
+              <p className="rival-weak">
+                Your guards ran off {repelled} {rival.name} shakedown{repelled === 1 ? '' : 's'}: {Math.round(weak * 100)}% weaker.
+              </p>
+            )}
             {rearmed && (
               <p className="rival-rearmed">
                 <b className="zh">重整旗鼓</b> Rearmed this year: {Math.round((REARMED_STRENGTH - 1) * 100)}% stronger.
@@ -181,7 +197,7 @@ function Prep({ fight, phase, onFight, onQuick }: { fight: FightDef; phase: Phas
           </div>
         </section>
 
-        <SquadBoard area={fight.area} />
+        <SquadBoard area={fight.area} fightId={fight.id} />
       </div>
       <footer className="turf-actions">
         {quick && (
@@ -539,7 +555,7 @@ export function TurfWar({ fightId, onClose }: { fightId: string; onClose: () => 
     const before = store.get();
     const { state, result } = resolveFight(before, fightId, outcome, gameNow());
     const lineup = JSON.stringify(effectiveSquad(before));
-    const matchingFills = (['offense', 'defense', 'balanced'] as const).filter((style) => JSON.stringify(effectiveSquad(fillSquad(before, style))) === lineup);
+    const matchingFills = (['offense', 'defense', 'balanced'] as const).filter((style) => JSON.stringify(effectiveSquad(fillSquad(before, style, fightPhase))) === lineup);
     track('battle_finished', { rival: fightId, outcome, phase: fightPhase, power_ratio: power / recommendedPower(fight, store.get()), first_win: result.first, playback_seconds: startedAt.current === null ? 0 : Math.round((performance.now() - startedAt.current) / 1000), matching_fills: matchingFills.join(',') || 'custom' });
     update(() => state);
     const report = battle ? battleReport(battle) : 'Quick win: your squad was strong enough to skip the fight.';

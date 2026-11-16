@@ -228,6 +228,8 @@ export interface GameState {
     events: number;
     /** Won a Turf War with only agents this run. */
     agentWin: boolean;
+    /** Shakedowns repelled in each district since its last first-time win (they weaken the next fight there). */
+    repelled: Partial<Record<AreaId, number>>;
   };
   meta: {
     /** Legacy; the safe size now comes from Face upgrades. */

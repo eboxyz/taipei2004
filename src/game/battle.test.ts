@@ -47,7 +47,8 @@ describe('battle simulation', () => {
   });
 
   it('Kun-bo calls in troupe runners', () => {
-    const b = createBattle(battleInputFor(crew({}), 'wanhua_boss', 'day'), 5);
+    // At night (Miaokou's off-time) the fight lasts long enough for the procession to arrive.
+    const b = createBattle(battleInputFor(crew({}), 'wanhua_boss', 'night'), 5);
     const start = b.units.length;
     let spawned = 0;
     while (!b.outcome && b.t < 30) for (const e of stepBattle(b, 0.05)) if (e.kind === 'spawn') spawned++;

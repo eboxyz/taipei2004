@@ -242,6 +242,21 @@ export function postOf(state: GameState, charId: string): { lotId: string; slot:
 }
 
 /**
+ * How strongly a lot moves the price index when you buy it or take it past a ×2: fully in your
+ * newest open district, 100× less for each district behind it (its prices are 100× lower). So a cheap
+ * Wanhua milestone late in a run is a small nudge, not the best buy in the city.
+ */
+export function indexWeight(state: GameState, lot: LotDef): number {
+  const newest = AREA_ORDER.reduce((n, a, i) => (isAreaOpen(state, a) ? i : n), 0);
+  return Math.pow(0.01, Math.max(0, newest - AREA_ORDER.indexOf(lot.area)));
+}
+
+/** Price-index gain for `base` points of buys or milestones on this lot (Market Buzz, headlines and district weight included). */
+export function indexGain(state: GameState, lot: LotDef, base: number): number {
+  return base * perk.indexMult(state) * indexWeight(state, lot);
+}
+
+/**
  * Literal property ownership for map progress; separate from investment-weighted battle influence.
  * The Xiaoxiao branch only counts once it's actually for sale (after Xindian's second lieutenant),
  * so owning everything you can buy reads 100%. Lieutenant-held lots always count: they're the next goal.

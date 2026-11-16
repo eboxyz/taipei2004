@@ -1,4 +1,5 @@
 import { migrate } from './state';
+import { retireAutoSquad } from './turf';
 import type { GameState } from './types';
 
 export const SAVE_KEY = 'taipei2004.save';
@@ -9,7 +10,8 @@ export function serialize(state: GameState): string {
 
 export function deserialize(json: string, now: number): GameState | null {
   try {
-    return migrate(JSON.parse(json), now);
+    const s = migrate(JSON.parse(json), now);
+    return s && retireAutoSquad(s);
   } catch {
     return null;
   }

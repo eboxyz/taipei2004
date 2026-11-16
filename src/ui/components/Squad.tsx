@@ -1,11 +1,19 @@
+import { track } from '../analytics';
 import { useState } from 'react';
 import { auraOf } from '../../game/battle';
 import { AREAS } from '../../game/content/areas';
 import { CHARACTERS, ROLES } from '../../game/content/characters';
-import { FIGHTS } from '../../game/content/fights';
+import { FIGHTS, MATCHUPS } from '../../game/content/fights';
 import { AURA_TEXT, skillOf } from '../../game/content/skills';
-import { autoFillSquad, basePower, canFill, effectiveSquad, setSquadSlot, slotKind, slotUnlocked, type SlotKind } from '../../game/turf';
-import type { GameState } from '../../game/types';
+import { basePower, canFill, effectiveSquad, fillSquad, setSquadSlot, slotKind, slotUnlocked, SQUAD_STYLES, type SlotKind } from '../../game/turf';
+import type { AreaId, GameState, SquadStyle } from '../../game/types';
+
+const STYLE_ORDER: SquadStyle[] = ['offense', 'defense', 'balanced'];
+const STYLE_CAPTION: Record<SquadStyle, string> = {
+  offense: 'Damage & speed',
+  defense: 'Grit & recovery',
+  balanced: 'Balanced power',
+};
 import { update } from '../engine';
 import { useGame } from '../store';
 import { Portrait, Sheet } from './bits';
@@ -139,10 +147,12 @@ function SlotPicker({ slot, onClose }: { slot: number; onClose: () => void }) {
 }
 
 /** The 7-slot squad: front row, back row, commanders. Tap a slot to change who stands there. */
-export function SquadBoard() {
+/** The squad editor, on the Crew tab and on Turf War prep (where `area` adds a matchup hint). */
+export function SquadBoard({ area }: { area?: AreaId }) {
   const s = useGame();
   const squad = effectiveSquad(s);
   const [pick, setPick] = useState<number | null>(null);
+  const matchup = area ? MATCHUPS[area] : undefined;
   const row = (slots: number[], label: string) => (
     <div className="squad-row" data-row={label}>
       <span className="squad-row-label">{label}</span>
@@ -159,18 +169,33 @@ export function SquadBoard() {
         <h2>
           Squad <span className="zh">人馬</span>
         </h2>
-        <button className="btn secondary small" aria-pressed={s.squadAuto} onClick={() => update(autoFillSquad)}>
-          {s.squadAuto ? 'Auto-fill: on ✓' : 'Auto-fill best'}
-        </button>
       </div>
       {row([0, 1], 'Front')}
       {row([2, 3, 4], 'Back')}
       {row([5, 6], 'Command')}
-      <p className="squad-note">
-        {s.squadAuto
-          ? 'Auto-fill puts your strongest cards in before every fight. Tap a slot to choose yourself.'
-          : 'Your picks stay put. Tap Auto-fill best to let the office choose again.'}
-      </p>
+      {matchup && (
+        <p className="squad-matchup">
+          <b>Matchup</b> {matchup.text}
+        </p>
+      )}
+      <div className="squad-fill" role="group" aria-label="Fill the squad in one tap">
+        {STYLE_ORDER.map((style) => (
+          <button
+            key={style}
+            className="squad-fill-btn"
+            data-suggested={matchup?.style === style}
+            aria-label={`Fill ${SQUAD_STYLES[style].name} squad${matchup?.style === style ? ' (suggested for this rival)' : ''}`}
+            title={SQUAD_STYLES[style].text}
+            onClick={() => { update((st) => fillSquad(st, style)); track('squad_fill_selected', { style }); }}
+          >
+            <span className="squad-fill-badge">{matchup?.style === style ? 'Suggested' : 'One-tap fill'}</span>
+            <span className="squad-fill-name">{SQUAD_STYLES[style].name}</span>
+            <span className="squad-fill-caption">{STYLE_CAPTION[style]}</span>
+            <span className="squad-fill-zh zh" aria-hidden="true">{SQUAD_STYLES[style].zh}</span>
+          </button>
+        ))}
+      </div>
+      <p className="squad-note">Your squad stays exactly as you set it. Tap a style to fill it in one go, then tap any slot to swap a card.</p>
       {pick !== null && <SlotPicker slot={pick} onClose={() => setPick(null)} />}
     </section>
   );

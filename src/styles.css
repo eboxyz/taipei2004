@@ -482,6 +482,47 @@ button:disabled {
   color: var(--muted);
 }
 
+.resource-guide {
+  margin: 16px 0;
+  border: 1px solid var(--muted);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.resource-guide summary {
+  min-height: 48px;
+  padding: 12px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.resource-guide summary small {
+  display: block;
+  margin: 4px 0 0 18px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.resource-guide summary:focus-visible {
+  outline: 2px solid var(--warm);
+  outline-offset: -3px;
+}
+
+.resource-guide-body { padding: 0 12px 12px; }
+.resource-guide-body p { font-size: 12px; line-height: 1.6; }
+.resource-guide-daily { margin: 0 0 10px; }
+.resource-guide-daily strong { color: var(--warm); }
+.resource-guide-list { margin: 0; }
+.resource-guide-list > div { padding: 10px 0; border-top: 1px solid var(--muted); }
+.resource-guide-list dt { font-size: 13px; font-weight: 800; }
+.resource-guide-list dt > span { margin-right: 5px; color: var(--warm); }
+.resource-guide-list dt small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; font-weight: 500; }
+.resource-guide-list dd { margin: 5px 0 0; font-size: 12px; line-height: 1.6; }
+.resource-guide-other { margin: 8px 0; }
+.resource-guide-foot { margin: 0; color: var(--muted); }
+
 /* ---------- Area screen ---------- */
 
 .area-head {
@@ -1806,6 +1847,82 @@ textarea.save-box {
 .slot-hint {
   font-size: 10px;
   font-weight: 700;
+  color: var(--warm);
+}
+
+.squad-matchup {
+  margin: 14px 0 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+}
+
+.squad-matchup b {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--warm);
+}
+
+.squad-fill {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.squad-fill-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+  min-width: 0;
+  min-height: 110px;
+  padding: 10px 4px;
+  border: 2px solid var(--muted);
+  border-radius: 10px;
+  background: var(--night);
+  text-align: center;
+  line-height: 1.25;
+}
+
+.squad-fill-btn[data-suggested='true'] {
+  border-color: var(--warm);
+  background: var(--night-3);
+}
+
+.squad-fill-btn:focus-visible {
+  outline: 3px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.squad-fill-btn:active {
+  background: var(--night-3);
+}
+
+.squad-fill-badge {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.squad-fill-btn[data-suggested='true'] .squad-fill-badge {
+  color: var(--warm);
+}
+
+.squad-fill-name {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.squad-fill-caption {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.squad-fill-zh {
+  margin-top: auto;
+  font-size: 14px;
   color: var(--warm);
 }
 
@@ -4558,3 +4675,16 @@ textarea.save-box {
   font-weight: 900;
   vertical-align: 2px;
 }
+
+/* Small contextual actions keep the map readable on narrow phones. */
+.next-goal { margin: 0 0 12px; padding: 12px; border-radius: 12px; background: var(--night-2); }
+.next-goal strong { font-size: 12px; color: var(--warm); }
+.next-goal p { margin: 5px 0 10px; font-size: 13px; line-height: 1.5; }
+.resource-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
+.resource-actions button { min-height: 44px; white-space: normal; }
+.tracking-choice { display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 700; }
+.tracking-choice input { width: 20px; height: 20px; }
+.save-warning { width: 100%; padding: 10px; min-height: 44px; background: var(--warm); color: var(--ink); border: 0; font: inherit; font-size: 13px; cursor: pointer; }
+
+.backup-upload { display: grid; gap: 6px; font-size: 13px; max-width: 100%; }
+.backup-upload input { min-height: 44px; max-width: 100%; }

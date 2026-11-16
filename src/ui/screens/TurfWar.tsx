@@ -15,6 +15,7 @@ import {
   buildTheirSide,
   buildYourSide,
   effectiveSquad,
+  fillSquad,
   isFirstWin,
   recommendedPower,
   rematchCooldown,
@@ -28,6 +29,7 @@ import { useDebugSpeed } from '../components/chrome';
 import { SquadBoard } from '../components/Squad';
 import { update } from '../engine';
 import { store, useGame, useNow } from '../store';
+import { track } from '../analytics';
 import { gameNow } from '../time';
 
 type Stage =
@@ -116,7 +118,7 @@ function Prep({ fight, phase, onFight, onQuick }: { fight: FightDef; phase: Phas
             <span style={{ left: `${(1 / 1.5) * 100}%` }} />
           </div>
           <p className="power-verdict">
-            {verdict === 'strong' ? 'You should win this.' : verdict === 'even' ? 'An even fight. It could go either way.' : 'Tough fight. You can still try: losing costs nothing.'}
+            {verdict === 'strong' ? 'Your power looks strong. Skills and matchups still affect the outcome.' : verdict === 'even' ? 'Power looks close. Check the rival’s trick and suggested squad below.' : 'Tough fight. You can still try: losing costs nothing.'}
           </p>
           <ul className="mods">
             {you.mods.map((m) => (
@@ -148,7 +150,7 @@ function Prep({ fight, phase, onFight, onQuick }: { fight: FightDef; phase: Phas
           </div>
         </section>
 
-        <SquadBoard />
+        <SquadBoard area={fight.area} />
       </div>
       <footer className="turf-actions">
         {quick && (
@@ -522,7 +524,9 @@ export function TurfWar({ fightId, onClose }: { fightId: string; onClose: () => 
   const [stage, setStage] = useState<Stage>({ kind: 'prep' });
   const leader = CHARACTERS[fight.leader]!;
 
+  const startedAt = useRef<number | null>(null);
   const start = () => {
+    startedAt.current = performance.now();
     const st = store.get();
     setStage({
       kind: 'battle',
@@ -535,6 +539,9 @@ export function TurfWar({ fightId, onClose }: { fightId: string; onClose: () => 
   const finish = (outcome: 'win' | 'lose', fightPhase: Phase, power: number) => {
     const before = store.get();
     const { state, result } = resolveFight(before, fightId, outcome, gameNow());
+    const lineup = JSON.stringify(effectiveSquad(before));
+    const matchingFills = (['offense', 'defense', 'balanced'] as const).filter((style) => JSON.stringify(effectiveSquad(fillSquad(before, style))) === lineup);
+    track('battle_finished', { rival: fightId, outcome, phase: fightPhase, power_ratio: power / recommendedPower(fight), first_win: result.first, playback_seconds: startedAt.current === null ? 0 : Math.round((performance.now() - startedAt.current) / 1000), matching_fills: matchingFills.join(',') || 'custom' });
     update(() => state);
     setStage({ kind: 'result', result, hints: outcome === 'lose' ? lossHints(before, fight, fightPhase, power) : [] });
     navigator.vibrate?.(outcome === 'win' ? [20, 40, 60] : 30);
@@ -554,7 +561,7 @@ export function TurfWar({ fightId, onClose }: { fightId: string; onClose: () => 
         </header>
       )}
       {stage.kind === 'prep' && (
-        <Prep fight={fight} phase={phase} onFight={start} onQuick={() => finish('win', phase, buildYourSide(store.get(), fight, phase).power)} />
+        <Prep fight={fight} phase={phase} onFight={start} onQuick={() => { startedAt.current = null; finish('win', phase, buildYourSide(store.get(), fight, phase).power); }} />
       )}
       {stage.kind === 'battle' && (
         <BattleScreen input={stage.input} seed={stage.seed} fight={fight} onEnd={(o) => finish(o, stage.phase, stage.power)} />

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { track } from '../analytics';
 import { AREAS } from '../../game/content/areas';
 import { BRANCHES, FACE_UPGRADES, type Branch } from '../../game/content/face';
 import { buyFaceUpgrade, canCashOut, cashOut, cashOutPreview, faceCost } from '../../game/face';
@@ -65,6 +66,7 @@ export function CashOutPanel() {
               className="btn"
               onClick={() => {
                 const r = cashOut(store.get(), gameNow());
+                track('cash_out', { run: r.state.meta.runs, face_earned: r.face });
                 replaceState(r.state);
                 setConfirm(false);
                 setCeremony(r.face);
@@ -182,7 +184,7 @@ export function AutomationPanel() {
       {perk.autoStaff(s) && (
         <label className="switch-row">
           <span>
-            <b>Duty Roster</b> fills empty Manager and Security slots with free crew
+            <b>Duty Roster</b> fills empty slots with free crew: best managers on your biggest earners, guards just strong enough for their area
           </span>
           <input type="checkbox" checked={s.auto.staff} onChange={() => toggle('staff')} />
         </label>

@@ -1,4 +1,4 @@
-import type { AreaId, FightKey } from '../types';
+import type { AreaId, FightKey, SquadStyle } from '../types';
 
 export interface EnemyDef {
   id: string;
@@ -37,6 +37,15 @@ export interface FightDef {
 
 const temple = { name: 'Temple Punk', nameZh: '廟口小弟' };
 
+/** Boss-matchup advice measured with STYLES=1 and the expected progression crews. */
+export const MATCHUPS: Partial<Record<AreaId, { style: SquadStyle; text: string }>> = {
+  wanhua: { style: 'balanced', text: 'Miaokou Gang keeps calling in troupe runners. Try All-around, and keep hit-all fighters in the army to clear the crowd.' },
+  ximending: { style: 'defense', text: 'Molong Society rushes with fast, fragile scooter crews. Try Defensive: a sturdy front and hit-all skills help handle the rush.' },
+  zhongshan: { style: 'balanced', text: 'Yuejian Society charms your crew and heals her staff. Try All-around to keep damage in the army with steady commander support; stuns can help too.' },
+  east: { style: 'offense', text: 'Jin Tangchi Group shelters behind shielded bodyguards. Try Offensive to keep your hitters attacking, with a scrivener helping strip defenses.' },
+  xinyi: { style: 'offense', text: 'Tongtian Development gains a permit buff every 15 seconds. Try Offensive to keep damage on the field and finish before the buffs build up.' },
+};
+
 export const FIGHTS: Record<string, FightDef> = {
   wanhua_lt1: {
     id: 'wanhua_lt1',
@@ -49,6 +58,7 @@ export const FIGHTS: Record<string, FightDef> = {
       { id: 'street_punk', level: 1, slot: 2, grunt: true, ...temple },
     ],
     timeLimit: 75,
+    strength: 1.021,
     recommended: 115,
     rewards: { incense: 10, lottery: 0 },
     unlockSlots: 4,
@@ -67,6 +77,7 @@ export const FIGHTS: Record<string, FightDef> = {
       { id: 'street_punk', level: 5, slot: 3, grunt: true, scale: 1.4, ...temple },
     ],
     timeLimit: 75,
+    strength: 0.993,
     recommended: 210,
     rewards: { incense: 10, lottery: 0 },
     unlockSlots: 5,
@@ -87,6 +98,7 @@ export const FIGHTS: Record<string, FightDef> = {
     ],
     runner: { id: 'street_punk', level: 3, slot: -1, grunt: true, scale: 1.1, name: 'Troupe Runner', nameZh: '陣頭' },
     timeLimit: 120,
+    strength: 0.961,
     recommended: 315,
     rewards: { incense: 20, lottery: 1 },
     unlockSlots: 6,
@@ -119,7 +131,7 @@ Object.assign(FIGHTS, {
     units: [g(6, 0, 1.8, scooter), g(6, 1, 1.8, scooter), { id: 'xiao_zhen', level: 5, slot: 2 }, g(5, 3, 1.8, scooter)],
     timeLimit: 75,
     recommended: 480,
-    strength: 1.69,
+    strength: 1.433,
     rewards: { incense: 10, lottery: 0 },
     unlockSlots: 0,
     intro: 'Xiao Zhen runs the best tattoo chair on the street. Her Bad Ink leaves your fighters hitting like wet noodles.',
@@ -133,7 +145,7 @@ Object.assign(FIGHTS, {
     units: [{ id: 'a_gan', level: 7, slot: 0 }, g(7, 1, 1.9, scooter), g(7, 2, 1.9, scooter), g(6, 3, 1.9, scooter), g(6, 4, 1.9, scooter)],
     timeLimit: 75,
     recommended: 550,
-    strength: 1.1,
+    strength: 1.047,
     rewards: { incense: 10, lottery: 0 },
     unlockSlots: 0,
     intro: 'A-Gan has the high score on every machine on the street, and a five-hit combo to match.',
@@ -147,7 +159,7 @@ Object.assign(FIGHTS, {
     units: [g(8, 0, 1.6, scooter), { id: 'a_hao', level: 7, slot: 1, scale: 1.2 }, g(8, 2, 1.6, scooter), g(8, 3, 1.6, scooter), g(7, 4, 1.6, scooter), { id: 'a_jie', level: 8, slot: 6 }],
     timeLimit: 120,
     recommended: 570,
-    strength: 1.26,
+    strength: 1.114,
     rewards: { incense: 20, lottery: 1 },
     unlockSlots: 7,
     intro: 'A-Jie leads the scooter crews that own Ximending after dark. They are fast, loud, and gone before you blink.',
@@ -161,7 +173,7 @@ Object.assign(FIGHTS, {
     units: [{ id: 'a_jian', level: 11, slot: 0 }, g(11, 1, 2.2, waiter), g(11, 2, 2.2, waiter), g(10, 3, 2.2, waiter), g(10, 4, 2.2, waiter)],
     timeLimit: 75,
     recommended: 1250,
-    strength: 1.34,
+    strength: 1.552,
     rewards: { incense: 12, lottery: 0 },
     unlockSlots: 0,
     intro: 'A-Jian has poured drinks on Linsen North Road for twenty years. At Last Orders, everyone has to deal with him first.',
@@ -175,7 +187,7 @@ Object.assign(FIGHTS, {
     units: [g(13, 0, 2.3, waiter), g(13, 1, 2.3, waiter), { id: 'coco', level: 13, slot: 2 }, g(12, 3, 2.3, waiter), g(12, 4, 2.3, waiter)],
     timeLimit: 75,
     recommended: 1310,
-    strength: 1.47,
+    strength: 2.12,
     rewards: { incense: 12, lottery: 0 },
     unlockSlots: 0,
     intro: "Coco books every room in the alleys from one charm-covered flip phone. Her Fine Print leaves your toughest card exposed.",
@@ -189,7 +201,7 @@ Object.assign(FIGHTS, {
     units: [g(15, 0, 2.2, waiter), g(15, 1, 2.2, waiter), g(14, 2, 2.2, waiter), g(14, 3, 2.2, waiter), g(14, 4, 2.2, waiter), { id: 'yue_jie', level: 15, slot: 6 }],
     timeLimit: 120,
     recommended: 1310,
-    strength: 1.09,
+    strength: 1.59,
     rewards: { incense: 25, lottery: 1 },
     unlockSlots: 0,
     intro: 'Yue-jie owns the lantern-lit lounges of the 條通 alleys. Her staff never seem to tire, and nobody refuses her a drink.',
@@ -203,7 +215,7 @@ Object.assign(FIGHTS, {
     units: [{ id: 'da_kuai', level: 18, slot: 0 }, g(18, 1, 2.6, guard), g(17, 2, 2.6, guard), g(17, 3, 2.6, guard), g(17, 4, 2.6, guard)],
     timeLimit: 75,
     recommended: 2360,
-    strength: 1.73,
+    strength: 1.859,
     rewards: { incense: 15, lottery: 0 },
     unlockSlots: 0,
     intro: 'Da-kuai has never smiled on duty. He blocks doorways, punches, and bullets, in that order.',
@@ -217,7 +229,7 @@ Object.assign(FIGHTS, {
     units: [g(20, 0, 2.7, guard), g(20, 1, 2.7, guard), { id: 'vivi', level: 20, slot: 2 }, { id: 'lao_liu', level: 19, slot: 3, scale: 1.4 }, g(19, 4, 2.7, guard)],
     timeLimit: 75,
     recommended: 2460,
-    strength: 1.97,
+    strength: 2.08,
     rewards: { incense: 15, lottery: 0 },
     unlockSlots: 0,
     intro: "Vivi carries the young master's credit cards and pays for everything, including his bodyguards' second chances.",
@@ -231,7 +243,7 @@ Object.assign(FIGHTS, {
     units: [g(23, 0, 2.8, guard), g(23, 1, 2.8, guard), g(22, 2, 2.8, guard), g(22, 3, 2.8, guard), g(22, 4, 2.8, guard), { id: 'jin_shao', level: 23, slot: 6 }],
     timeLimit: 120,
     recommended: 2490,
-    strength: 1.28,
+    strength: 1.454,
     rewards: { incense: 30, lottery: 1 },
     unlockSlots: 0,
     intro: "Jin-shao has never paid full price for anything. His bodyguards start every fight behind his father's money.",
@@ -245,7 +257,7 @@ Object.assign(FIGHTS, {
     units: [g(26, 0, 3, worker), g(26, 1, 3, worker), { id: 'secretary_lin', level: 26, slot: 2 }, g(25, 3, 3, worker), g(25, 4, 3, worker)],
     timeLimit: 75,
     recommended: 4110,
-    strength: 2.48,
+    strength: 2.756,
     rewards: { incense: 18, lottery: 0 },
     unlockSlots: 0,
     intro: 'Secretary Lin carries two flip phones: one for the city council, one for the chairman. Your permits are always "under review".',
@@ -259,7 +271,7 @@ Object.assign(FIGHTS, {
     units: [{ id: 'tie_ge', level: 29, slot: 0 }, g(29, 1, 3.1, worker), g(28, 2, 3.1, worker), g(28, 3, 3.1, worker), g(28, 4, 3.1, worker)],
     timeLimit: 75,
     recommended: 4250,
-    strength: 1.88,
+    strength: 2.145,
     rewards: { incense: 18, lottery: 0 },
     unlockSlots: 0,
     intro: 'Tie-ge has poured the foundation for half the towers in Xinyi. He swings rebar like a baseball bat.',
@@ -273,7 +285,7 @@ Object.assign(FIGHTS, {
     units: [g(33, 0, 3.2, worker), g(33, 1, 3.2, worker), g(32, 2, 3.2, worker), g(32, 3, 3.2, worker), g(32, 4, 3.2, worker), { id: 'tian_dong', level: 33, slot: 6 }],
     timeLimit: 120,
     recommended: 4270,
-    strength: 1.56,
+    strength: 1.878,
     rewards: { incense: 40, lottery: 2 },
     unlockSlots: 0,
     intro: 'Chairman Tian-dong is building the tallest tower in the world, and he has friends in every office that matters.',

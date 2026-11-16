@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit",
     "sim": "tsx scripts/simulate.ts",
     "art": "node scripts/process-art.mjs",
-    "sim:fights": "tsx scripts/battle-sim.ts"
+    "sim:fights": "node --import tsx scripts/battle-sim.ts"
   },
   "dependencies": {
     "react": "^19.3.1",

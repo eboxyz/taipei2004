@@ -1,6 +1,7 @@
-import { AREAS, FACTIONS } from '../../game/content/areas';
+import { useState } from 'react';
+import { ALL_LOTS, AREA_ORDER, AREAS, FACTIONS } from '../../game/content/areas';
 import { phaseAt } from '../../game/clock';
-import { isAreaOpen, marketShare } from '../../game/economy';
+import { buyPrice, isAreaOpen, isLotLocked, marketShare } from '../../game/economy';
 import { formatPercent } from '../../game/format';
 import type { AreaId, GameState } from '../../game/types';
 import { store, useGame, useNow } from '../store';
@@ -9,7 +10,16 @@ import { claimEvent, EVENT_INFO, type EventReward } from '../../game/events';
 import { formatMoney } from '../../game/format';
 import { update } from '../engine';
 import { gameNow } from '../time';
+import { FIGHTS } from '../../game/content/fights';
+import { isFirstWin, rematchCooldown } from '../../game/turf';
+import { collectSafe } from '../../game/actions';
+import { act } from '../engine';
+import { classOf } from '../../game/characters';
+import { postOf } from '../../game/economy';
+import { track } from '../analytics';
 import { artUrl } from '../art';
+import { LOTTERY_BALLS, COST, canDraw } from '../../game/gacha';
+import { SHARE_THRESHOLDS, REMATCH_COOLDOWN_MS, SHAKEDOWN_SCRATCH_EVERY } from '../../game/constants';
 
 interface Node {
   id: AreaId;
@@ -131,7 +141,7 @@ function eventText(r: EventReward, fmt: 'cjk' | 'kmb'): string {
   }
 }
 
-export function MapScreen({ onOpenArea, onLocked }: { onOpenArea: (id: AreaId) => void; onLocked: (msg: string) => void }) {
+export function MapScreen({ onOpenArea, onOpenDraws, onOpenCrew, onLocked }: { onOpenArea: (id: AreaId) => void; onOpenDraws: () => void; onOpenCrew: () => void; onLocked: (msg: string) => void }) {
   const s = useGame();
   const now = useNow(5000);
   const phase = phaseAt(now);
@@ -141,6 +151,23 @@ export function MapScreen({ onOpenArea, onLocked }: { onOpenArea: (id: AreaId) =
   // A halo in the map's own background color keeps labels readable where they cross lines and rivers.
   const halo = { stroke: night ? '#1a1240' : '#f1ead9', strokeWidth: 3.5, strokeLinejoin: 'round' as const, paintOrder: 'stroke' };
   const floors = towerFloors(s);
+  const [guideOpen, setGuideOpen] = useState(() => {
+    try { return localStorage.getItem('taipei2004.resourceGuide') !== 'closed'; } catch { return true; }
+  });
+  const [dismissed, setDismissed] = useState('');
+  const rematch = Object.values(FIGHTS).find((f) => !isFirstWin(s, f) && rematchCooldown(s, f.id, now) === 0);
+  const readyFight = Object.values(FIGHTS).find((f) => isAreaOpen(s, f.area) && isFirstWin(s, f) && marketShare(s, f.area) >= SHARE_THRESHOLDS[f.key]);
+  const nextLot = Object.values(ALL_LOTS).filter((lot) => !s.lots[lot.id] && isAreaOpen(s, lot.area) && !isLotLocked(s, lot)).sort((a, b) => buyPrice(s, a) - buyPrice(s, b))[0];
+  const canStaff = Object.values(s.lots).some((lot) => !lot.manager) && Object.keys(s.characters).some((id) => classOf(id) === 'agent' && !postOf(s, id));
+  const goal = readyFight ? { text: `A rival challenge is ready in ${AREAS[readyFight.area].name}. Losing costs nothing.`, action: 'View Turf War', go: () => onOpenArea(readyFight.area) }
+    : nextLot && s.cash >= buyPrice(s, nextLot) ? { text: `You can afford ${nextLot.name} in ${AREAS[nextLot.area].name}.`, action: 'View property', go: () => onOpenArea(nextLot.area) }
+      : canStaff ? { text: 'You have an empty manager post and free crew. Compare their income bonuses in Crew.', action: 'View crew', go: onOpenCrew }
+        : s.safe > 0 && !s.run.accountant ? { text: 'Income is waiting in your safe. Collect it to spend on properties.', action: 'Collect safe', go: () => { act(collectSafe); } }
+          : nextLot ? { text: `Next property: ${nextLot.name}. Save ${formatMoney(Math.max(0, buyPrice(s, nextLot) - s.cash), s.settings.numberFormat)} more.`, action: 'View property', go: () => onOpenArea(nextLot.area) }
+            : { text: `Keep upgrading lots to grow your market share in ${AREAS[AREA_ORDER.filter((id) => isAreaOpen(s, id) && !s.areas[id].boss).at(-1) ?? 'wanhua'].name}.`, action: 'View area', go: () => onOpenArea(AREA_ORDER.filter((id) => isAreaOpen(s, id) && !s.areas[id].boss).at(-1) ?? 'wanhua') };
+
+
+  const goalKey = `${goal.action}:${readyFight?.id ?? nextLot?.id ?? ''}`;
 
   const ticker = [
     `★ 房價指數 HOUSING INDEX ${s.index.toFixed(1)} ▲`,
@@ -172,6 +199,10 @@ export function MapScreen({ onOpenArea, onLocked }: { onOpenArea: (id: AreaId) =
         <span className="ticker-track">{ticker}</span>
       </div>
       <div className="map-wrap">
+        {dismissed !== goalKey && <section className="next-goal" aria-label="Next step">
+          <div><strong>Next step</strong><p>{goal.text}</p></div>
+          <div className="resource-actions"><button className="btn secondary small" onClick={() => { track('next_goal_opened', { action: goal.action }); goal.go(); }}>{goal.action}</button><button className="link-btn" onClick={() => setDismissed(goalKey)}>Dismiss</button></div>
+        </section>}
         <div className="map-title">
           <h1>
             TAIPEI<span className="zh">台北</span>
@@ -333,6 +364,43 @@ export function MapScreen({ onOpenArea, onLocked }: { onOpenArea: (id: AreaId) =
         <p className="map-hint">
           {s.event ? 'Something is happening at a station! Tap the bubble before it moves on.' : 'Tap an open station to buy lots there. Each area belongs to a gang boss until you take it.'}
         </p>
+        <details className="resource-guide" open={guideOpen} onToggle={(e) => {
+          const open = e.currentTarget.open; setGuideOpen(open);
+          try { localStorage.setItem('taipei2004.resourceGuide', open ? 'open' : 'closed'); } catch { /* optional preference */ }
+        }}>
+          <summary>
+            <span>Resource guide</span>
+            <small>Where to earn & spend</small>
+          </summary>
+          <div className="resource-guide-body">
+            <p className="resource-guide-daily">
+              <strong>One free Temple draw every day.</strong>{' '}
+              {!s.zodiac ? 'Choose your zodiac in Draws to get started.'
+                : canDraw(s, 'temple', now).free ? 'Your free visit is ready in Draws.'
+                  : 'You’ve used today’s free visit. More draws cost incense money.'}
+            </p>
+            <div className="resource-actions">
+              <button className="btn secondary small" onClick={() => { track('resource_guide_action', { action: 'draws' }); onOpenDraws(); }}>{canDraw(s, 'temple', now).free ? 'Visit free Temple' : 'Open Draws'}</button>
+              {rematch && <button className="btn secondary small" onClick={() => { track('resource_guide_action', { action: 'rematch' }); onOpenArea(rematch.area); }}>Rewarded rematch: {AREAS[rematch.area].name}</button>}
+            </div>
+            <dl className="resource-guide-list">
+              <div>
+                <dt><span aria-hidden="true">刮</span> Scratch cards <small>{COST.scratch.amount} per scratch draw</small></dt>
+                <dd>Tap scratch-card street events on this map, repel {SHAKEDOWN_SCRATCH_EVERY} shakedowns, or win a Turf War rematch. Each fight pays rematch rewards once every {REMATCH_COOLDOWN_MS / 60_000} minutes.</dd>
+              </div>
+              <div>
+                <dt><span aria-hidden="true">香</span> Incense money <small>{COST.temple.amount} per Temple draw</small></dt>
+                <dd>Beat each lieutenant or boss for the first time in a run. Later, extra copies of cards already at ★5 become incense money.</dd>
+              </div>
+              <div>
+                <dt><span aria-hidden="true">樂</span> Lottery tickets <small>{COST.lottery.amount} ticket draws {LOTTERY_BALLS} cards</small></dt>
+                <dd>First boss wins each run, completing a collection page in Crew, and cashing out in Office.</dd>
+              </div>
+            </dl>
+            <p className="resource-guide-other"><strong>Cash:</strong> own and upgrade lots for steady income. <strong>XP:</strong> Turf War fights and repelled shakedowns. <strong>Face:</strong> cash out in Office for permanent upgrades.</p>
+            <p className="resource-guide-foot">Draw currencies carry over when you cash out.</p>
+          </div>
+        </details>
       </div>
     </div>
   );

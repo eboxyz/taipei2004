@@ -120,6 +120,9 @@ export interface AreaProgress {
 export type BuyMode = 1 | 10 | 'max' | 'next';
 export type FightKey = 'lt1' | 'lt2' | 'boss';
 
+/** The three one-tap squad fills. */
+export type SquadStyle = 'offense' | 'defense' | 'balanced';
+
 /**
  * Squad slots by index: 0–1 front row, 2–4 back row,
  * 5 Lieutenant commander (SR or better), 6 Boss commander (SSR).
@@ -179,7 +182,8 @@ export interface GameState {
   areas: Record<AreaId, AreaProgress>;
   squad: Squad;
   /** When true the squad is rebuilt from your best cards before each fight. */
-  squadAuto: boolean;
+  /** Saves before v5 only: auto-fill, now retired. Cleared on load by `retireAutoSquad`. */
+  squadAuto?: boolean;
   currencies: Currencies;
   /** 生肖, picked before the first draw. Tilts draws toward two roles. */
   zodiac: Zodiac | null;

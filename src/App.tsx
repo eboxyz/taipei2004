@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { canHireAccountant } from './game/actions';
 import { canDraw } from './game/gacha';
 import { canCashOut, cashOutPreview } from './game/face';
@@ -13,7 +13,7 @@ import { fightFor } from './game/content/fights';
 import type { AwaySummary } from './game/offline';
 import type { AreaId, GameEvent, GameState } from './game/types';
 import { AwayModal, SafeButton, TabBar, Toasts, TopBar, type Tab, type Toast } from './ui/components/chrome';
-import { startEngine } from './ui/engine';
+import { getSaveHealth, subscribeSaveHealth, startEngine } from './ui/engine';
 import { store, useGame } from './ui/store';
 import { AreaScreen } from './ui/screens/AreaScreen';
 import { CrewScreen } from './ui/screens/CrewScreen';
@@ -45,6 +45,7 @@ function describe(e: GameEvent, s: GameState): Omit<Toast, 'id'> | null {
 
 function Game() {
   const s = useGame();
+  const saveHealth = useSyncExternalStore(subscribeSaveHealth, getSaveHealth);
   const [tab, setTab] = useState<Tab>('map');
   const [area, setArea] = useState<AreaId | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -83,15 +84,16 @@ function Game() {
   const dots: Partial<Record<Tab, boolean>> = {
     map: fightReady,
     crew: freeCrew && openSlots,
-    draws: !s.zodiac || canDraw(s, 'temple', gameNow()).free,
+    draws: !s.zodiac || (['scratch', 'temple', 'lottery'] as const).some((kind) => canDraw(s, kind, gameNow()).ok),
     office: (canHireAccountant(s) && s.cash >= ACCOUNTANT_COST) || (canCashOut(s) && cashOutPreview(s).goodTime),
   };
 
   return (
     <div className="phone">
       <TopBar />
+      {saveHealth.failed && <button className="save-warning" onClick={() => { setArea(null); setTab('office'); }}>Saving is unavailable. Tap to export a backup in Office.</button>}
       <main className="screen" ref={screenRef}>
-        {tab === 'map' && !area && <MapScreen onOpenArea={setArea} onLocked={(m) => toast(m)} />}
+        {tab === 'map' && !area && <MapScreen onOpenDraws={() => setTab('draws')} onOpenCrew={() => setTab('crew')} onOpenArea={setArea} onLocked={(m) => toast(m)} />}
         {tab === 'map' && area && <AreaScreen area={area} onBack={() => setArea(null)} onToast={toast} />}
         {tab === 'crew' && <CrewScreen />}
         {tab === 'draws' && <DrawsScreen />}

@@ -1,17 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { createBattle, fire, runBattle, stepBattle } from './battle';
 import { FIGHTS } from './content/fights';
+import { CHARACTERS } from './content/characters';
 import { ALL_LOTS } from './content/areas';
 import { upgradeCountFor } from './economy';
 import { initialState, migrate } from './state';
-import { autoFillSquad, battleInputFor, bestSquad, buildYourSide, canFill, effectiveSquad, resolveFight, setSquadSlot } from './turf';
-import type { GameState } from './types';
+import { battleInputFor, bestSquad, buildYourSide, canFill, effectiveSquad, fillSquad, resolveFight, retireAutoSquad, setSquadSlot } from './turf';
+import { deserialize, serialize } from './save';
+import type { GameState, SquadStyle } from './types';
 
 function crew(levels: Record<string, number>, slots = 3): GameState {
   const s = initialState(0);
   const characters = { ...s.characters };
   for (const [id, level] of Object.entries(levels)) characters[id] = { level, xp: 0, stars: 1 };
-  return { ...s, characters, meta: { ...s.meta, squadSlots: slots } };
+  // Tests field the All-around fill, as a player would after one tap.
+  return fillSquad({ ...s, characters, meta: { ...s.meta, squadSlots: slots } }, 'balanced');
 }
 
 describe('battle simulation', () => {
@@ -37,7 +40,7 @@ describe('battle simulation', () => {
   });
 
   it('an empty squad loses', () => {
-    const s = { ...crew({}), squadAuto: false, squad: Array(7).fill(null) };
+    const s = { ...crew({}), squad: Array(7).fill(null) };
     const input = battleInputFor(s, 'wanhua_lt1', 'day');
     expect(input.you).toHaveLength(0);
     expect(runBattle(input, 1).outcome).toBe('lose');
@@ -86,13 +89,88 @@ describe('squad', () => {
     for (let i = 0; i < 6; i++) expect(canFill(squad[i]!, i)).toBe(true);
   });
 
-  it('hand edits turn auto off and swap places', () => {
+  it('hand edits swap places and stick', () => {
     let s = crew({}, 4);
     s = setSquadSlot(s, 3, 'a_di');
-    expect(s.squadAuto).toBe(false);
     expect(s.squad[3]).toBe('a_di');
     expect(s.squad.filter((x) => x === 'a_di')).toHaveLength(1);
-    expect(autoFillSquad(s).squadAuto).toBe(true);
+  });
+
+  it('offensive and defensive fills pick different front rows and commanders', () => {
+    const s = crew({ hai_shu: 5, a_shun: 5, lao_liu: 5, a_hao: 5, a_biao: 5, a_jian: 5, a_di: 5, a_cai: 5 }, 6);
+    const off = fillSquad(s, 'offense').squad;
+    const def = fillSquad(s, 'defense').squad;
+    expect(off.slice(0, 2)).toContain('a_shun'); // enforcer up front
+    expect(def.slice(0, 2)).toContain('hai_shu'); // bouncer up front
+    expect(off.slice(0, 2)).toContain('a_biao'); // keep the hit-all fighter attacking
+    expect(off[5]).toBe('a_jian'); // use a legal bench card instead of stealing a fighter
+    expect(def.slice(0, 2)).toContain('a_jian'); // the bouncer tanks in the army
+    expect(def[5]).toBe('a_biao'); // the benched enforcer gives a damage aura
+    for (const squad of [off, def]) for (let i = 0; i < 6; i++) expect(canFill(squad[i]!, i)).toBe(true);
+  });
+
+  it('keeps the best army fighters out of command when legal bench commanders exist', () => {
+    const levels = Object.fromEntries(Object.keys(CHARACTERS).map((id) => [id, 12]));
+    const state = crew(levels, 7);
+    for (const style of ['offense', 'defense', 'balanced'] as SquadStyle[]) {
+      const army = bestSquad({ ...state, meta: { ...state.meta, squadSlots: 5 } }, style).slice(0, 5);
+      const squad = bestSquad(state, style);
+      expect(squad.slice(0, 5)).toEqual(army);
+      expect(squad[5]).toBeTruthy();
+      expect(squad[6]).toBeTruthy();
+      for (const id of squad.slice(5)) expect(army).not.toContain(id);
+    }
+  });
+
+  it('reserves the only benched SSR for boss command before choosing an SR lieutenant', () => {
+    const state = crew({ hai_shu: 30, a_biao: 30, gui_yi: 30, xiao_zhen: 30, a_cai: 30, kun_bo: 1, coco: 1 }, 7);
+    for (const style of ['offense', 'defense', 'balanced'] as SquadStyle[]) {
+      const squad = bestSquad(state, style);
+      expect(squad[6]).toBe('kun_bo');
+      expect(squad[5]).toBe('coco');
+    }
+  });
+
+  it('promotes the least valuable legal fighter only when there is no bench commander', () => {
+    const state = crew({ a_biao: 20, gui_yi: 1, intern: 1 }, 6);
+    for (const style of ['offense', 'defense', 'balanced'] as SquadStyle[]) {
+      const squad = bestSquad(state, style);
+      expect(squad[5]).toBe('gui_yi');
+      expect(squad.slice(0, 2)).toContain('a_biao');
+      expect(squad.filter(Boolean)).toHaveLength(6);
+    }
+  });
+
+  it('all fills use unique owned cards in legal unlocked slots, including sparse collections', () => {
+    const collections = [{}, { a_biao: 2, gui_yi: 1, kun_bo: 1 }, Object.fromEntries(Object.keys(CHARACTERS).map((id) => [id, 10]))];
+    for (const levels of collections) for (let slots = 3; slots <= 7; slots++) {
+      const state = crew(levels, slots);
+      for (const style of ['offense', 'defense', 'balanced'] as SquadStyle[]) {
+        const squad = fillSquad(state, style).squad;
+        expect(new Set(squad.filter(Boolean)).size).toBe(squad.filter(Boolean).length);
+        squad.forEach((id, slot) => {
+          if (!id) return;
+          expect(slot).toBeLessThan(slots);
+          expect(state.characters[id]).toBeDefined();
+          expect(canFill(id, slot)).toBe(true);
+        });
+      }
+    }
+  });
+
+  it('a fill happens once: new cards never join on their own', () => {
+    const s = crew({}, 4);
+    const later = { ...s, characters: { ...s.characters, a_jie: { level: 30, xp: 0, stars: 5 } } };
+    expect(effectiveSquad(later)).toEqual(effectiveSquad(s));
+  });
+
+  it('an old auto-fill save keeps the squad auto-fill would field, as a fixed squad', () => {
+    const s = crew({ a_biao: 3, gui_yi: 3 }, 5);
+    const old = { ...s, squad: ['hai_shu', null, null, null, null, null, null], squadAuto: true };
+    const loaded = deserialize(serialize(old), 0)!;
+    expect(loaded.squadAuto).toBeUndefined();
+    expect(loaded.squad).toEqual(bestSquad(s, 'balanced'));
+    expect(retireAutoSquad(loaded)).toBe(loaded);
   });
 
   it('modifiers: night favours gangsters, Home Turf adds Grit', () => {

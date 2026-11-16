@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
+import { setTracking, useTracking } from '../analytics';
 import { canHireAccountant, hireAccountant } from '../../game/actions';
 import { ACCOUNTANT_COST, ACCOUNTANT_UNLOCK_LOTS } from '../../game/constants';
 import { incomePerSec, isAreaOpen, netWorth, safeHours } from '../../game/economy';
@@ -6,7 +7,7 @@ import { optimizeStaff } from '../../game/staffing';
 import { formatMoney } from '../../game/format';
 import { exportSave, importSave } from '../../game/save';
 import { Money } from '../components/bits';
-import { act, debugSkip, replaceState, resetGame, update } from '../engine';
+import { getSaveHealth, subscribeSaveHealth, act, debugSkip, replaceState, resetGame, update } from '../engine';
 import { store, useGame } from '../store';
 import { towerFloors } from './MapScreen';
 import { DEBUG, gameNow } from '../time';
@@ -79,6 +80,8 @@ function devStreetEvent(): string {
 
 export function OfficeScreen({ onToast }: { onToast: (text: string, tone?: 'good' | 'warn') => void }) {
   const s = useGame();
+  const tracking = useTracking();
+  const saveHealth = useSyncExternalStore(subscribeSaveHealth, getSaveHealth);
   const [exported, setExported] = useState('');
   const [importText, setImportText] = useState('');
   const [confirmReset, setConfirmReset] = useState(false);
@@ -174,6 +177,8 @@ export function OfficeScreen({ onToast }: { onToast: (text: string, tone?: 'good
 
       <section className="panel">
         <h2>Settings</h2>
+        <label className="tracking-choice"><input type="checkbox" checked={tracking} onChange={(e) => setTracking(e.target.checked)} /> Share game statistics</label>
+        <p>Optional: send gameplay events and basic error diagnostics to PostHog to help improve the game. No save contents, names, recordings or automatic click tracking. Off by default; change this anytime.</p>
         <p>Big numbers: Chinese units or K/M/B. Press and hold any amount to see the other style.</p>
         <div className="seg" role="group" aria-label="Number format">
           <button aria-pressed={s.settings.numberFormat === 'cjk'} onClick={() => setFormat('cjk')}>
@@ -187,11 +192,26 @@ export function OfficeScreen({ onToast }: { onToast: (text: string, tone?: 'good
 
       <section className="panel">
         <h2>Save</h2>
-        <p>Your game saves on this device automatically. Export a backup string, or paste one to load it.</p>
+        <p role="status">{saveHealth.failed ? "Saving is unavailable. Please export a backup before closing the game." : saveHealth.lastSuccess ? `Last saved: ${new Date(saveHealth.lastSuccess).toLocaleTimeString()}` : "Waiting for the first automatic save."}</p>
+        <p>Your game saves in this browser at this website address. A different device or URL has a separate save. Export a backup string, or paste one to load it.</p>
         <div className="row" style={{ justifyContent: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
           <button className="btn secondary" onClick={doExport}>
             Export
           </button>
+          <button className="btn secondary" onClick={() => {
+            const url = URL.createObjectURL(new Blob([exportSave(store.get())], { type: 'text/plain' }));
+            const link = document.createElement('a'); link.href = url; link.download = 'taipei2004-save.txt'; link.click();
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+          }}>Download backup</button>
+          <label className="backup-upload">Load backup file<input type="file" accept=".txt,text/plain" onChange={async (e) => {
+            const file = e.target.files?.[0]; if (!file) return;
+            try {
+              const next = importSave(await file.text(), gameNow());
+              if (!next) return onToast("That backup file didn't work.", 'warn');
+              replaceState(next); onToast('Backup loaded.', 'good');
+            } catch { onToast('Could not read that backup file.', 'warn'); }
+            finally { e.target.value = ''; }
+          }} /></label>
           <button className="btn secondary" disabled={!importText.trim()} onClick={doImport}>
             Import
           </button>

@@ -162,7 +162,7 @@ export function slotAdvice(state: GameState, lotId: string, slot: Slot, fmt: (n:
   return { options, tip };
 }
 
-/* ---------- Dev only ---------- */
+/* ---------- Filling posts: Duty Roster, and the dev-only optimizer ---------- */
 
 function managerMultOf(state: GameState, id: string): number {
   const b = statsOf(id, state.characters[id]).business;
@@ -170,13 +170,30 @@ function managerMultOf(state: GameState, id: string): number {
 }
 
 /**
- * Dev tool: reassigns every post. Strongest managers go to the biggest earners. Guards go to unclaimed
- * areas, toughest area first, each lot getting the weakest gangster strong enough for it.
- * Leftover gangsters guard claimed areas for the Home Turf bonus. Role perks other than 店長 are ignored.
+ * Fills empty slots with free crew, best value first. Posts that are already filled are left alone.
+ * - Managers: the strongest free agents go to the biggest earners that have no Manager.
+ * - Guards: unclaimed areas first, toughest area first, each lot getting the weakest free gangster
+ *   who is strong enough. Anyone left guards the remaining unclaimed lots (attempts still earn XP),
+ *   then claimed areas (Home Turf in rematches).
+ * Role perks other than 店長 are ignored.
  */
-export function optimizeStaff(state: GameState): GameState {
-  const lots = Object.fromEntries(Object.entries(state.lots).map(([id, ls]) => [id, { ...ls, manager: undefined, security: undefined }]));
-  let s: GameState = { ...state, lots };
+export function fillPosts(state: GameState): GameState {
+  // Cheap early exit, since Duty Roster runs every tick.
+  const posted = new Set<string>();
+  let emptyM = 0;
+  let emptyS = 0;
+  for (const ls of Object.values(state.lots)) {
+    if (ls.manager) posted.add(ls.manager);
+    else emptyM++;
+    if (ls.security) posted.add(ls.security);
+    else emptyS++;
+  }
+  const freeOf = (cls: 'agent' | 'gangster') => Object.keys(state.characters).filter((id) => classOf(id) === cls && !posted.has(id));
+  const agents = emptyM > 0 ? freeOf('agent') : [];
+  const gangsters = emptyS > 0 ? freeOf('gangster') : [];
+  if (agents.length === 0 && gangsters.length === 0) return state;
+
+  let s = state;
   const owned = Object.keys(s.lots)
     .map((id) => ALL_LOTS[id])
     .filter((l): l is LotDef => !!l);
@@ -185,25 +202,37 @@ export function optimizeStaff(state: GameState): GameState {
     if (r.ok) s = r.state;
   };
 
-  const agents = Object.keys(s.characters)
-    .filter((id) => classOf(id) === 'agent')
-    .sort((a, b) => managerMultOf(s, b) - managerMultOf(s, a));
-  const byIncome = [...owned].sort((a, b) => baseIncome(s, b) - baseIncome(s, a));
-  byIncome.forEach((lot, i) => agents[i] && assign(lot.id, 'manager', agents[i]));
-
-  const free = new Set(Object.keys(s.characters).filter((id) => classOf(id) === 'gangster'));
-  const muscle = (id: string) => statsOf(id, s.characters[id]).muscle;
-  const contested = byIncome.filter((l) => !s.areas[l.area].boss).sort((a, b) => AREAS[b.area].threat - AREAS[a.area].threat);
-  for (const lot of contested) {
-    const fit = [...free].filter((id) => muscle(id) >= AREAS[lot.area].threat).sort((a, b) => muscle(a) - muscle(b))[0];
-    if (fit) {
-      assign(lot.id, 'security', fit);
-      free.delete(fit);
-    }
+  if (agents.length > 0) {
+    agents.sort((a, b) => managerMultOf(s, b) - managerMultOf(s, a));
+    const empty = owned.filter((l) => !s.lots[l.id]!.manager).sort((a, b) => baseIncome(s, b) - baseIncome(s, a));
+    empty.forEach((lot, i) => agents[i] && assign(lot.id, 'manager', agents[i]));
   }
-  // Anyone left: claimed areas (Home Turf), then unguarded contested lots (attempts still earn XP).
-  const rest = [...byIncome.filter((l) => s.areas[l.area].boss), ...contested].filter((l) => !s.lots[l.id]!.security);
-  const leftovers = [...free].sort((a, b) => muscle(b) - muscle(a));
-  rest.forEach((lot, i) => leftovers[i] && assign(lot.id, 'security', leftovers[i]));
+
+  if (gangsters.length > 0) {
+    const free = new Set(gangsters);
+    const muscle = (id: string) => statsOf(id, s.characters[id]).muscle;
+    const income = (l: LotDef) => lotIncome(s, l, 'average');
+    const unguarded = owned.filter((l) => !s.lots[l.id]!.security);
+    const contested = unguarded
+      .filter((l) => !s.areas[l.area].boss)
+      .sort((a, b) => AREAS[b.area].threat - AREAS[a.area].threat || income(b) - income(a));
+    for (const lot of contested) {
+      const fit = [...free].filter((id) => muscle(id) >= AREAS[lot.area].threat).sort((a, b) => muscle(a) - muscle(b))[0];
+      if (fit) {
+        assign(lot.id, 'security', fit);
+        free.delete(fit);
+      }
+    }
+    const claimedLots = unguarded.filter((l) => s.areas[l.area].boss).sort((a, b) => income(b) - income(a));
+    const rest = [...contested, ...claimedLots].filter((l) => !s.lots[l.id]!.security);
+    const leftovers = [...free].sort((a, b) => muscle(b) - muscle(a));
+    rest.forEach((lot, i) => leftovers[i] && assign(lot.id, 'security', leftovers[i]));
+  }
   return s;
+}
+
+/** Dev tool: clears every post, then fills them all with `fillPosts`. */
+export function optimizeStaff(state: GameState): GameState {
+  const lots = Object.fromEntries(Object.entries(state.lots).map(([id, ls]) => [id, { ...ls, manager: undefined, security: undefined }]));
+  return fillPosts({ ...state, lots });
 }

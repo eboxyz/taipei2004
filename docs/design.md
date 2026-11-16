@@ -138,7 +138,9 @@ The mechanics are inspired by Yakuza 0's real estate minigame. All characters, g
   - **Every candidate shows the real trade:** income added here, what the person they replace adds, and what's lost at the lot they'd leave, so the net on the right adds up. Role perks are said for that lot ("Nothing left to buy in Wanhua, so no discount").
   - **The best guard** is the weakest gangster who still meets the threat, which keeps stronger fighters free for tougher areas.
 - **Crew → Posts:** every lot you own by area, with its Manager and Security portraits. Empty slots and too-weak guards are highlighted, your top N earners are tagged, and free crew are listed at the bottom. Tapping a lot opens the same lot sheet and tips.
+- **Duty Roster (Face perk)** fills only empty slots with free crew, best value first: the strongest managers go to the biggest earners, and each guard is the weakest one strong enough for that area. It never moves anyone the player posted.
 - **No auto-optimize for players.** "Optimize everyone" is a dev tool only.
+- **Dev tools** (the Office dev panel and the speed pill) exist only in dev builds. Production builds strip them out of the bundle entirely.
 
 ### Shakedowns (rewards only)
 Rivals periodically lean on your lots in their area.
@@ -210,9 +212,15 @@ Steps 1–2 unlock during a run. Steps 3–5 are permanent Face upgrades, each w
   - Commanders don't make basic attacks.
   - **Aura:** Boss-class cards with a signature aura (Procession, Scooter Crew, Last Call, Daddy's Money, Permits, Old Money, Rave, Lucky Streak) use it. Every other commander gives its role's aura (table below).
   - **Ultimate:** the card's signature skill at double strength, charged over 24 s.
-  - Auto-fill prefers a Boss-class card with a signature aura as commander, and moves an army card up only if a bench card can take its slot.
+  - **No auto-fill.** The squad stays as you set it; new cards never join on their own (a beaten lieutenant or boss still takes an open slot). New saves start with the starters as the All-around fill; v4 saves with auto-fill on keep that squad as a fixed one.
+  - **Three one-tap fills:** Offensive 攻, Defensive 守, All-around 平衡 (`fillSquad` in `turf.ts`). All choose their army first by comparing legal front-row combinations and the best remaining back row; flexible runners compete with fixed-row cards.
+    - **Offensive:** Muscle, enforcers, runners and scriveners; keeps a bouncer as an early front-row anchor until an SSR fighter can lead the rush. Prefers damage, speed and skill-charge commander auras.
+    - **Defensive:** Grit, healers and shields, with a modest bouncer preference so a much weaker tank does not replace a strong fighter. Prefers health, healing and shield commander auras.
+    - **All-around:** total fighting power with a discount for an army summoner, whose signature aura makes commanding especially useful. Back-row attackers go before support; Defensive also considers Business when ordering that row.
+    - **Commander selection:** choose Boss first (reserving scarce SSR cards), then Lieutenant, from legal **bench cards outside the army**. Prefer auras matching the style, then estimated aura/ultimate utility. Only if there is no legal bench commander, promote the least valuable legal army fighter by that style's fighting score, and only with a legal bench replacement for its army slot. Reorder the rows after backfilling. If no legal replacement exists, keep the fighter attacking and leave command empty.
+    - **Measured gang suggestions:** Miaokou → All-around; Molong → Defensive (tied with All-around against the boss); Yuejian → All-around (tied with Defensive); Jin Tangchi → Offensive; Tongtian → Offensive (Defensive also performs strongly). These are suggestions for typical progression collections, not guarantees for every roster. The 300-seed style sweep has no 0% fills in any scenario; Offensive is still a weaker daytime choice against Molong and Yuejian bosses. Full before/after rates and lineups: [`battle-sim-results.md`](battle-sim-results.md).
 - **Home Turf:** +3% Grit to the whole army for each Security posted in that area. This replaced the idea of a reinforcement bench.
-- **Prep screen:** tap a slot to pick a card (drag-and-drop later), or use **Auto-fill best**, which stays on until you place a card by hand. It shows your power against the recommended power, every modifier, and a hint like "nightfall in 4 min".
+- **Prep screen:** tap a slot to pick a card (drag-and-drop later), or use one of the three fills. A matchup line names the rival's trick and suggests a fill (`MATCHUPS` in `content/fights.ts`). The fills are three evenly spaced, equal-width buttons with English names, brief descriptions and a visible Suggested label; the Chinese marks are decorative. It shows your power against the recommended power, every modifier, and a hint like "nightfall in 4 min".
 - A card can be posted at a lot and fight in the squad at the same time.
 
 #### Role auras (commanders without a signature aura)
@@ -295,6 +303,7 @@ The 10 rival lieutenants join as SR and the 5 bosses as SSR, so everyone earns c
 | Temple 求籤 | Shake the phone (or swipe) until a stick falls | 50% | 38% | 10% | 2% |
 | Lottery 樂透 | Balls tumble; 3 cards per ticket, at least one SR or better; weekly featured character | — | 60% | 32% | 8% |
 
+- **Phone shaking:** request motion permission from the draw button tap. Show whether motion data is connected, blocked by an insecure page, denied, unavailable, or not arriving; offer a permission retry when appropriate. Prefer valid gravity-free acceleration, otherwise filter gravity from the available axes. Four gentle jolts reveal the stick; swipe and tap always remain available.
 - **Temple stick grades:** 下籤 = N, 中籤 = R, 上籤 = SR, 上上籤 = SSR.
 - **Moon blocks (擲筊):** after a temple draw, you can throw the blocks.
   - Three 聖筊 in a row (12.5%) upgrades the card one rarity.
@@ -305,6 +314,8 @@ The 10 rival lieutenants join as SR and the 5 bosses as SSR, so everyone earns c
 - Guarantee counters carry over between runs, and odds are shown in the game.
 
 ### Currencies (never reset)
+
+The Map includes a dismissible contextual next-step prompt and an initially expanded, collapsible **Resource guide** below the stations. The guide remembers its folded state and links to Draws and an available rewarded rematch. It explains draw costs, currency sources and reward timing, highlights whether the daily free Temple visit is ready, and briefly covers cash, XP and Face. English labels accompany the decorative currency glyphs.
 
 | Currency | Earned from |
 |---|---|
@@ -366,7 +377,7 @@ Four branches, 18 upgrades (most with several levels), with costs that rise as y
 | 4–6 | About a day each | Xinyi clear and fireworks |
 | After | Ongoing | 新店 and the binder |
 
-Simulated with a perfect, always-online player (`npm run sim`): run 1 claims Ximending at about 55 min and reaches Zhongshan's lieutenants at 2.5–3.3 h. With early upgrades (Good Name 4, a few discounts) East District's first lieutenant comes at about 6.5 h. A strong late run (Good Name 12 and the other Business upgrades maxed) claims Xinyi at about 17 h. Fights are tuned so the squad you'd have at that point wins about 60% by day and nearly always at night (`npm run sim:fights`).
+Simulated with a perfect, always-online player (`npm run sim`): run 1 claims Ximending at about 55 min and reaches Zhongshan's lieutenants at 2.5–3.3 h. With early upgrades (Good Name 4, a few discounts) East District's first lieutenant comes at about 6.5 h. A strong late run (Good Name 12 and the other Business upgrades maxed) claims Xinyi at about 17 h. Fights are tuned with the first expected All-around squad for each fight (`TUNE=1 npm run sim:fights`, 400 seeds, strengths to three decimals). After the commander fix, the 400-seed confirmation gives 59–63% daytime wins and 99–100% nighttime wins across all 15 fights; the three stronger Wanhua follow-up squads remain easier. Compare all fills and their lineups with `STYLES=1 N=300 npm run sim:fights`; each uses the same seed range. Power is an estimate, so similar displayed power can still hide differences in attacks, skills and auras.
 
 **Notoriety (名氣)** levels for after the story are **parked until the user has played a build.**
 
@@ -515,3 +526,12 @@ Turf Wars launch from an area screen.
 - **Women:** 9.
 - **Classes:** 11 agents, 19 gangsters.
 - **Faction sizes:** Miaokou 4, Molong 5, Yuejian 3, Jin Tangchi 4, Tongtian 3, player agency 4, independent 7.
+
+
+### Optional analytics and save health
+
+- Office → Settings offers **Share game statistics**, off by default. Production builds send explicit events to the US PostHog ingestion API only after opting in; development builds never send events. No replay, automatic click capture, names or save contents. A separate random browser ID supports return-visit analysis; opting out removes that local ID and stops future sends. Already-sent events are not deleted by this switch.
+- Events cover session start/pause/resume and active time, first property purchase in a run, district claims, cash-outs, squad-fill selection, battle outcomes/power ratio/matching fills/playback duration, purchased draws, Temple reveal method, motion access/connection, guide actions and basic error categories. Matching fills can include multiple styles or “custom”; they describe the resulting lineup rather than claiming a fill was selected. Playback duration is wall time, not simulated fight duration. Browser errors are explicit custom events rather than SDK-grouped exception reports.
+- Event payloads disable person profiles and GeoIP enrichment and set the IP property to null. Project-level IP discard should also be enabled by the owner. No raw motion readings. Limit collection to 500 events and 10 error reports per page load; no retries or offline event queue. Blocked analytics never blocks gameplay.
+- Autosave success/failure and last successful save time appear in Office. A persistent failure banner links there. Save strings and downloadable/uploadable backup files are supported. Saves are local to a browser and website origin; use the stable production URL.
+- Engine regression tests cover save failure/recovery and background/resume without duplicate away income. Physical iPhone Chrome/Safari checks remain required for sensor permission, denied/retry, larger text, and browser suspension behavior.

@@ -5,6 +5,7 @@ import { initialState } from '../game/state';
 import { tick } from '../game/tick';
 import type { GameEvent, GameState } from '../game/types';
 import { store } from './store';
+import { trackProgress } from './analytics';
 import { advance, gameNow, getSpeed, persistClock } from './time';
 
 const TICK_MS = 100;
@@ -49,9 +50,18 @@ function step() {
   if (real - lastSave > SAVE_MS) save();
 }
 
+const saveHealthListeners = new Set<() => void>();
+let saveHealth = { lastSuccess: 0, failed: false };
+export function getSaveHealth() { return saveHealth; }
+export function subscribeSaveHealth(fn: () => void) {
+  saveHealthListeners.add(fn); return () => { saveHealthListeners.delete(fn); };
+}
+
 export function save() {
   lastSave = Date.now();
-  saveLocal(store.get());
+  const ok = saveLocal(store.get());
+  saveHealth = { lastSuccess: ok ? Date.now() : saveHealth.lastSuccess, failed: !ok };
+  for (const fn of saveHealthListeners) fn();
   persistClock();
 }
 
@@ -103,13 +113,17 @@ export function debugSkip(seconds: number) {
 export function act(fn: (s: GameState) => ActionResult): string | null {
   const r = fn(store.get());
   if (!r.ok) return r.reason;
+  trackProgress(store.get(), r.state);
   store.set(r.state);
   return null;
 }
 
 /** Applies a change that can't fail (settings, squad edits). */
 export function update(fn: (s: GameState) => GameState) {
-  store.set(fn(store.get()));
+  const before = store.get();
+  const after = fn(before);
+  trackProgress(before, after);
+  store.set(after);
 }
 
 export function replaceState(next: GameState) {

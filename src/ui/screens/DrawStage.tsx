@@ -28,6 +28,8 @@ import { Portrait, Stars } from '../components/bits';
 import { update } from '../engine';
 import { store, useGame } from '../store';
 import { gameNow } from '../time';
+import { track } from '../analytics';
+import { createShakeDetector, requestMotionAccess, type MotionAccess } from '../motion';
 
 export const MACHINE_INFO: Record<DrawKind, { name: string; short: string; zh: string; glyph: string; currency: string }> = {
   scratch: { name: 'Scratch Card', short: 'Scratch', zh: '刮刮樂', glyph: '刮', currency: 'scratch card' },
@@ -48,6 +50,7 @@ function doDraw(kind: DrawKind): DrawResult | null {
   const r = draw(store.get(), kind, Math.random, gameNow());
   if (!r.ok) return null;
   update(() => r.state);
+  track('draw_purchased', { machine: kind, free: r.result.free, cards: r.result.gains.length });
   navigator.vibrate?.(15);
   return r.result;
 }
@@ -336,53 +339,69 @@ function TempleMachine() {
   const lastDir = useRef(0);
   const lastY = useRef<number | null>(null);
 
-  const bump = () => {
-    if (stage !== 'shaking') return;
+  const meterRef = useRef(0);
+  const revealTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (revealTimer.current) clearTimeout(revealTimer.current); }, []);
+  const bump = (method: 'shake' | 'swipe' | 'tap' = 'tap') => {
+    if (stage !== 'shaking' || meterRef.current >= SHAKES_NEEDED) return;
     setWiggle((w) => w + 1);
     navigator.vibrate?.(8);
-    setMeter((m) => {
-      const next = m + 1;
-      if (next >= SHAKES_NEEDED) {
-        setStage('fallen');
-        setTimeout(() => setStage('card'), 1400);
-      }
-      return next;
-    });
+    const next = ++meterRef.current;
+    setMeter(next);
+    if (next >= SHAKES_NEEDED) {
+      track('temple_revealed', { method });
+      setStage('fallen');
+      revealTimer.current = setTimeout(() => setStage('card'), 1400);
+    }
   };
   const bumpRef = useRef(bump);
   bumpRef.current = bump;
 
-  // Real phone shaking, where the browser allows it.
+  const [motionStatus, setMotionStatus] = useState<MotionAccess | 'live' | 'silent'>('waiting');
+  const [motionAttempt, setMotionAttempt] = useState(0);
+  const motionLive = motionStatus === 'live';
   useEffect(() => {
     if (stage !== 'shaking') return;
-    let cool = 0;
-    const onMotion = (e: DeviceMotionEvent) => {
-      const a = e.accelerationIncludingGravity ?? e.acceleration;
-      if (!a) return;
-      const mag = Math.hypot(a.x ?? 0, a.y ?? 0, a.z ?? 0);
-      const now = performance.now();
-      if (mag > 22 && now > cool) {
-        cool = now + 250;
-        bumpRef.current();
-      }
+    const detect = createShakeDetector();
+    let connected = false;
+    const onMotion = (event: DeviceMotionEvent) => {
+      const sample = detect(event, performance.now());
+      if (!sample.live) return;
+      if (!connected) { connected = true; track('motion_connected'); }
+      setMotionStatus('live');
+      if (sample.shake) bumpRef.current('shake');
     };
+    const timeout = window.setTimeout(() => {
+      setMotionStatus((status) => status === 'waiting' ? 'silent' : status);
+    }, 3000);
     window.addEventListener('devicemotion', onMotion);
-    return () => window.removeEventListener('devicemotion', onMotion);
-  }, [stage]);
+    return () => {
+      window.clearTimeout(timeout);
+      window.removeEventListener('devicemotion', onMotion);
+    };
+  }, [stage, motionAttempt]);
+
+  const enableMotion = async () => {
+    // Invoke permission synchronously from the button tap, before any await.
+    const access = await requestMotionAccess({
+      isSecureContext: window.isSecureContext,
+      DeviceMotionEvent: (window as unknown as { DeviceMotionEvent?: { requestPermission?: () => Promise<string> } }).DeviceMotionEvent,
+    });
+    setMotionStatus(access);
+    track('motion_access', { status: access });
+    setMotionAttempt((n) => n + 1);
+  };
 
   const start = async () => {
-    // iOS asks for motion permission from a tap; swiping and tapping work without it.
-    const DM = (window as unknown as { DeviceMotionEvent?: { requestPermission?: () => Promise<string> } }).DeviceMotionEvent;
-    try {
-      await DM?.requestPermission?.();
-    } catch {
-      /* fall back to swipe/tap */
-    }
+    await enableMotion();
     const r = doDraw('temple');
     if (!r) return;
     setResult(r);
     setBlocks(null);
     setMeter(0);
+    meterRef.current = 0;
+    lastY.current = null;
+    lastDir.current = 0;
     setStage('shaking');
   };
 
@@ -392,7 +411,7 @@ function TempleMachine() {
     if (lastY.current !== null) {
       const dir = Math.sign(y - lastY.current);
       if (dir !== 0 && dir !== lastDir.current && Math.abs(y - lastY.current) > 2) {
-        if (lastDir.current !== 0) bump();
+        if (lastDir.current !== 0) bump('swipe');
         lastDir.current = dir;
       }
     }
@@ -428,10 +447,10 @@ function TempleMachine() {
           data-stage={stage}
           role={stage === 'shaking' ? 'button' : undefined}
           tabIndex={stage === 'shaking' ? 0 : -1}
-          aria-label={stage === 'shaking' ? 'Shake the stick cup: swipe up and down, tap, or shake your phone' : undefined}
+          aria-label={stage === 'shaking' ? `Shake the stick cup: swipe up and down or tap${motionLive ? ', or shake your phone' : ''}` : undefined}
           onPointerMove={onMove}
           onPointerUp={() => (lastY.current = null)}
-          onClick={bump}
+          onClick={() => bump()}
           onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && bump()}
         >
           <div className="incense" aria-hidden>
@@ -467,7 +486,21 @@ function TempleMachine() {
           <OddsTable kind="temple" />
         </>
       )}
-      {stage === 'shaking' && <p className="stage-hint">Swipe up and down on the cup, tap it, or shake your phone.</p>}
+      {stage === 'shaking' && (
+        <div className="temple-motion-status" role="status">
+          <p className="stage-hint">
+            {motionStatus === 'live' ? 'Motion is connected. Gently shake your phone, swipe up and down on the cup, or tap it.'
+              : motionStatus === 'insecure' ? 'Phone shaking needs a secure HTTPS page. You can still swipe up and down on the cup, or tap it.'
+              : motionStatus === 'denied' ? 'Motion access is off. Allow motion to shake your phone, or swipe up and down on the cup, or tap it.'
+              : motionStatus === 'unavailable' ? 'This browser does not offer phone motion here. Swipe up and down on the cup, or tap it.'
+              : motionStatus === 'silent' ? 'No motion data is arriving. Try enabling phone shaking again, or swipe up and down on the cup, or tap it.'
+              : 'Waiting for phone motion. Gently shake your phone, or swipe up and down on the cup, or tap it.'}
+          </p>
+          {(motionStatus === 'denied' || motionStatus === 'silent') && (
+            <button className="btn secondary" onClick={enableMotion}>Enable phone shaking</button>
+          )}
+        </div>
+      )}
       {stage === 'fallen' && result?.stick && (
         <div className="slip">
           <span>第 {result.stick.number} 籤</span>

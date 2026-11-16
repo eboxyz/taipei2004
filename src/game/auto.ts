@@ -1,28 +1,18 @@
 /** Automation unlocked by Face upgrades. Runs while the game is open (offline stays closed-form). */
-import { assignStaff, buyLot, upgradeLot } from './actions';
-import { classOf, statsOf } from './characters';
+import { buyLot, upgradeLot } from './actions';
 import { ALL_LOTS, AREAS, AREA_ORDER } from './content/areas';
-import { buyPrice, isAreaOpen, isLotLocked, postOf, upgradeCost } from './economy';
+import { buyPrice, isAreaOpen, isLotLocked, upgradeCost } from './economy';
 import { perk } from './perks';
+import { fillPosts } from './staffing';
 import type { GameEvent, GameState } from './types';
 
-/** Fills empty Manager and Security slots with your best free crew. */
+/**
+ * Duty Roster: fills empty Manager and Security slots with free crew, best value first
+ * (strongest managers on the biggest earners, the weakest strong-enough guard per lot).
+ * Never moves anyone the player has posted.
+ */
 export function autoStaff(state: GameState): GameState {
-  let s = state;
-  for (const [lotId, ls] of Object.entries(s.lots)) {
-    for (const slot of ['manager', 'security'] as const) {
-      if (ls[slot]) continue;
-      const need = slot === 'manager' ? 'agent' : 'gangster';
-      const stat = slot === 'manager' ? 'business' : 'muscle';
-      const free = Object.keys(s.characters)
-        .filter((id) => classOf(id) === need && !postOf(s, id))
-        .sort((a, b) => statsOf(b, s.characters[b])[stat] - statsOf(a, s.characters[a])[stat])[0];
-      if (!free) continue;
-      const r = assignStaff(s, lotId, slot, free);
-      if (r.ok) s = r.state;
-    }
-  }
-  return s;
+  return fillPosts(state);
 }
 
 /** Buys the cheapest open lot you can afford. */

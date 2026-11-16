@@ -21,9 +21,9 @@ export function initialState(now: number): GameState {
       AreaId,
       AreaProgress
     >,
-    // Hai-shu and A-Di up front, A-Cai behind them.
+    // The All-around fill of the starters: Hai-shu and A-Di up front, A-Cai behind them.
+    // Squads are never re-filled automatically after this.
     squad: ['hai_shu', 'a_di', 'a_cai', ...Array<null>(SQUAD_SIZE - 3).fill(null)],
-    squadAuto: true,
     currencies: { scratch: 0, incense: 0, lottery: 0 },
     zodiac: null,
     draws: { templePity: 0, lotteryPity: 0, lastFreeTemple: null, count: { scratch: 0, temple: 0, lottery: 0 } },
@@ -51,6 +51,7 @@ export function migrate(raw: unknown, now: number): GameState | null {
   if (typeof s.version !== 'number' || s.version > SAVE_VERSION) return null;
   // v2 added the squad, currencies and fight stats; v3 added zodiac, draws and the binder;
   // v4 added Face upgrades, cash-out, automation and street events.
+  // v5 retired squad auto-fill; save.ts turns an auto squad into a fixed one (turf.ts can't be imported here).
   // Filling missing fields from a fresh state covers every step so far, and partial saves still load.
   const base = initialState(now);
   return {

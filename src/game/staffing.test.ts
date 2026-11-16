@@ -4,7 +4,7 @@ import { classOf, statsOf } from './characters';
 import { AREAS } from './content/areas';
 import { CHARACTERS } from './content/characters';
 import { incomePerSec } from './economy';
-import { managerGain, optimizeStaff, slotAdvice } from './staffing';
+import { fillPosts, managerGain, optimizeStaff, slotAdvice } from './staffing';
 import { initialState } from './state';
 import type { GameState } from './types';
 
@@ -63,6 +63,17 @@ describe('staffing advice', () => {
     const { options, tip } = slotAdvice(s, 'w1', 'security', fmt);
     expect(options.some((o) => o.best)).toBe(false);
     expect(tip).toContain('claimed');
+  });
+
+  it('Duty Roster puts the best free agent on the biggest earner and leaves manual posts alone', () => {
+    let s = setup();
+    const byGain = [...agents].sort((a, b) => managerGain(s, 'w3', b) - managerGain(s, 'w3', a));
+    // The player posted the second-best agent on the smallest lot by hand.
+    s = ok(assignStaff(s, 'w1', 'manager', byGain[1]!));
+    const after = fillPosts(s);
+    expect(after.lots.w1!.manager).toBe(byGain[1]);
+    expect(after.lots.w3!.manager).toBe(byGain[0]);
+    expect(fillPosts(after)).toBe(after); // nothing left to fill: no new state
   });
 
   it('dev optimize never lowers income and fills every Manager slot it can', () => {

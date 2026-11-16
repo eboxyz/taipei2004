@@ -35,7 +35,7 @@ export const FACE_UPGRADES: FaceUpgrade[] = [
   // Idle 閒
   { id: 'safe', branch: 'idle', name: 'Bigger Safe', zh: '大保險箱', max: 10, base: 2, growth: 1.6, effect: (l) => `Safe holds ${4 + 2 * l} hours` },
   { id: 'bookkeeper', branch: 'idle', name: 'Bookkeeper on Staff', zh: '常駐會計', max: 1, base: 6, growth: 1, effect: (l) => (l ? 'The bookkeeper is hired from the start of every run' : 'Hire the bookkeeper from the start of every run') },
-  { id: 'auto_staff', branch: 'idle', name: 'Duty Roster', zh: '排班表', max: 1, base: 8, growth: 1, effect: () => 'Auto-assign your best free crew to empty Manager and Security slots' },
+  { id: 'auto_staff', branch: 'idle', name: 'Duty Roster', zh: '排班表', max: 1, base: 8, growth: 1, effect: () => 'Auto-fills empty Manager and Security slots with free crew: best managers on your biggest earners, and guards just strong enough for each area' },
   { id: 'auto_upgrade', branch: 'idle', name: 'Standing Orders', zh: '自動加碼', max: 1, base: 12, growth: 1, effect: () => 'Auto-upgrade: a switch on each area keeps buying its cheapest upgrade' },
   { id: 'auto_buy', branch: 'idle', name: 'Land Scout', zh: '探地', max: 1, base: 20, growth: 1, effect: () => 'Auto-buy: buys the cheapest open lot as soon as you can afford it' },
   // Muscle 拳頭

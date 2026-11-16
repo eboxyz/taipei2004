@@ -1,5 +1,5 @@
 /** Tuning knobs. Change these, then run `npm run sim` to check pacing. */
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 /** Upgrade cost multiplier per level. */
 export const UPGRADE_GROWTH = 1.17;

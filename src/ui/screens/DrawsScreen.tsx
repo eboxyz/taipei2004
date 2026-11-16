@@ -57,9 +57,9 @@ export function DrawsScreen() {
   const [zodiac, setZodiac] = useState(false);
   const now = gameNow();
   const wallet = [
-    { glyph: '刮', name: 'Scratch cards', value: s.currencies.scratch, from: 'Every 4th repelled shakedown, and Turf War rematch wins' },
-    { glyph: '香', name: 'Incense money 香油錢', value: s.currencies.incense, from: 'First wins over lieutenants and bosses, and ★5 duplicates' },
-    { glyph: '樂', name: 'Lottery tickets', value: s.currencies.lottery, from: 'Beating bosses and completing binder pages' },
+    { glyph: '刮', name: 'Scratch cards', value: s.currencies.scratch, from: 'Map street events, every 4th repelled shakedown, and rewarded Turf War rematch wins' },
+    { glyph: '香', name: 'Incense money 香油錢', value: s.currencies.incense, from: 'First rival wins each run, and extra duplicates of cards already at ★5' },
+    { glyph: '樂', name: 'Lottery tickets', value: s.currencies.lottery, from: 'First boss wins each run, completing binder pages, and cashing out in Office' },
   ];
   const tap = (kind: DrawKind) => (s.zodiac ? setOpen(kind) : setZodiac(true));
   const status = (kind: DrawKind): string => {

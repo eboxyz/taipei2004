@@ -6,10 +6,12 @@
 import { runBattle } from '../src/game/battle';
 import { FIGHTS } from '../src/game/content/fights';
 import { initialState } from '../src/game/state';
-import { battleInputFor, buildYourSide, recommendedPower } from '../src/game/turf';
-import type { GameState, Phase } from '../src/game/types';
+import { battleInputFor, buildYourSide, fillSquad, recommendedPower } from '../src/game/turf';
+import type { GameState, Phase, SquadStyle } from '../src/game/types';
 
 const N = Number(process.env.N ?? 400);
+if (!Number.isInteger(N) || N < 1) throw new Error('N must be a positive integer');
+const styles: SquadStyle[] = ['offense', 'defense', 'balanced'];
 
 // Tuning overrides, e.g. wanhua_lt1="1:0.7,2:1" sets level:scale per enemy unit.
 for (const f of Object.values(FIGHTS)) {
@@ -31,7 +33,8 @@ function withCrew(levels: Record<string, number>, slots: number, extra: Partial<
   for (const [id, level] of Object.entries(levels)) characters[id] = { level, xp: 0, stars };
   // Hai-shu guards a lot in the fight's area (Home Turf), A-Cai manages one.
   const lots = { w1: { level: 10, invested: 0, security: 'hai_shu', manager: 'a_cai' } };
-  return { ...s, characters, lots, meta: { ...s.meta, squadSlots: slots, upgrades: { training } }, ...extra };
+  // The squad a player gets from the All-around fill.
+  return fillSquad({ ...s, characters, lots, meta: { ...s.meta, squadSlots: slots, upgrades: { training } }, ...extra }, 'balanced');
 }
 
 const lv = (ids: string[], level: number) => Object.fromEntries(ids.map((id) => [id, level]));
@@ -69,6 +72,20 @@ const scenarios: { fight: string; label: string; state: GameState }[] = [
 const only = process.env.ONLY;
 for (const sc of scenarios.filter((x) => !only || x.fight.startsWith(only))) {
   const fight = FIGHTS[sc.fight]!;
+  if (process.env.STYLES) {
+    console.log(`${sc.fight} | ${sc.label} | N=${N}`);
+    for (const style of styles) {
+      const state = fillSquad(sc.state, style);
+      const rates = (['day', 'night'] as Phase[]).map((phase) => {
+        const input = battleInputFor(state, sc.fight, phase);
+        let wins = 0;
+        for (let seed = 1; seed <= N; seed++) if (runBattle(input, seed).outcome === 'win') wins++;
+        return `${phase} ${(100 * wins / N).toFixed(1)}%`;
+      });
+      console.log(`    ${style.padEnd(8)} ${rates.join(' | ')} | ${state.squad.map((id, slot) => `${slot}:${id ?? '-'}`).join(' ')}`);
+    }
+    continue;
+  }
   const rec = recommendedPower(fight);
   const row: string[] = [];
   for (const phase of ['day', 'night'] as Phase[]) {
@@ -102,8 +119,8 @@ if (process.env.TUNE) {
       fight.strength = k;
       const input = battleInputFor(sc.state, sc.fight, 'day');
       let w = 0;
-      for (let seed = 1; seed <= 60; seed++) if (runBattle(input, seed).outcome === 'win') w++;
-      return w / 60;
+      for (let seed = 1; seed <= N; seed++) if (runBattle(input, seed).outcome === 'win') w++;
+      return w / N;
     };
     let lo = 0.3;
     let hi = 4;
@@ -112,7 +129,7 @@ if (process.env.TUNE) {
       if (rate(mid) > 0.6) lo = mid;
       else hi = mid;
     }
-    const k = Number(((lo + hi) / 2).toFixed(2));
+    const k = Number(((lo + hi) / 2).toFixed(3));
     fight.strength = k;
     const power = buildYourSide(sc.state, fight, 'day').power;
     const r = runBattle(battleInputFor(sc.state, sc.fight, 'day'), 1);

@@ -80,16 +80,22 @@
 
 - `areas/xinyi_night.png` — accepted — Batch D; built-in imagegen edit of corresponding day banner with approved style reference and shared style block; 1536×1024; exact prompt saved alongside image.
 
-- `crests/miaokou_gang.png` — pending review — Batch E; built-in imagegen with approved style reference and shared style block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned 1254×1254 despite requested 1024×1024; retained higher-resolution source to avoid extra generation usage; downsample to target in game art processing.
+- `crests/miaokou_gang.png` — accepted — Batch E; built-in imagegen with approved style reference and shared style block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned 1254×1254 despite requested 1024×1024; retained higher-resolution source to avoid extra generation usage; downsample to target in game art processing.
 
-- `crests/molong_society.png` — pending review — Batch E; built-in imagegen with approved style reference and shared style block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned 1254×1254 despite requested 1024×1024; retained higher-resolution source to avoid extra generation usage; downsample to target in game art processing.
+- `crests/molong_society.png` — accepted — Batch E; built-in imagegen with approved style reference and shared style block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned 1254×1254 despite requested 1024×1024; retained higher-resolution source to avoid extra generation usage; downsample to target in game art processing.
 
-- `crests/yuejian_society.png` — pending review — Batch E; built-in imagegen with approved style reference and shared style block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned 1254×1254 despite requested 1024×1024; retained higher-resolution source to avoid extra generation usage; downsample to target in game art processing.
+- `crests/yuejian_society.png` — accepted — Batch E; built-in imagegen with approved style reference and shared style block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned 1254×1254 despite requested 1024×1024; retained higher-resolution source to avoid extra generation usage; downsample to target in game art processing.
 
-- `crests/jin_tangchi_group.png` — pending review — Batch E; built-in imagegen with approved style reference and shared style block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned 1254×1254 despite requested 1024×1024; retained higher-resolution source to avoid extra generation usage; downsample to target in game art processing.
+- `crests/jin_tangchi_group.png` — accepted — Batch E; built-in imagegen with approved style reference and shared style block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned 1254×1254 despite requested 1024×1024; retained higher-resolution source to avoid extra generation usage; downsample to target in game art processing.
 
-- `crests/tongtian_development.png` — pending review — Batch E; built-in imagegen with approved style reference and shared style block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned 1254×1254 despite requested 1024×1024; retained higher-resolution source to avoid extra generation usage; downsample to target in game art processing.
+- `crests/tongtian_development.png` — accepted — Batch E; built-in imagegen with approved style reference and shared style block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned 1254×1254 despite requested 1024×1024; retained higher-resolution source to avoid extra generation usage; downsample to target in game art processing.
 
-- `crests/xiaoxiao_realty.png` — pending review — Batch E; built-in imagegen with approved style reference and shared style block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned 1254×1254 despite requested 1024×1024; retained higher-resolution source to avoid extra generation usage; downsample to target in game art processing.
+- `crests/xiaoxiao_realty.png` — accepted — Batch E; built-in imagegen with approved style reference and shared style block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned 1254×1254 despite requested 1024×1024; retained higher-resolution source to avoid extra generation usage; downsample to target in game art processing.
 
-- `crests/player_agency.png` — pending review — Batch E; built-in imagegen with approved style reference and shared style block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned 1254×1254 despite requested 1024×1024; retained higher-resolution source to avoid extra generation usage; downsample to target in game art processing.
+- `crests/player_agency.png` — accepted — Batch E; built-in imagegen with approved style reference and shared style block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned 1254×1254 despite requested 1024×1024; retained higher-resolution source to avoid extra generation usage; downsample to target in game art processing.
+
+- `key/title.png` — pending review — Foreground portraits removed to match scene-only brief; Batch F; built-in imagegen with approved style sheet and shared style block; 1024×1536; exact prompt saved alongside image.
+
+- `key/cash_out.png` — pending review — Batch F; built-in imagegen with approved style sheet and shared style block; 1024×1536; exact prompt saved alongside image.
+
+- `key/fireworks.png` — pending review — Foreground portraits removed to match scene-only brief; Batch F; built-in imagegen with approved style sheet and shared style block; 1024×1536; exact prompt saved alongside image.

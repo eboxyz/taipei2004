@@ -20,7 +20,7 @@ The mechanics are inspired by Yakuza 0's real estate minigame. All characters, g
 ### Era and tone
 - Taipei, about 2002 to New Year's Eve 2004 (Chapter 1). The secret area runs to December 2010.
 - A **housing price index (房價指數)** climbs during each run.
-- **Taipei 101 rises on the skyline as the run's progress bar.** Claiming Xinyi tops it out and plays the NYE 2004 fireworks: the full show the first time, a short version after that.
+- **Taipei 101 rises on the skyline as the run's progress bar** (4 floors + 0.6 per index point above 100, capped at 100). Claiming Xinyi tops it out at 101 and plays the NYE 2004 fireworks: the full show the first time, a short version after that.
 - **Cash-out is called 金盆洗手** (washing your hands in the golden basin to retire). It ends with "…but nobody stays retired."
 - **Tone:** upbeat crime comedy with bright nightlife. Day is sunny and night is neon. Both are bright, never moody.
 
@@ -89,12 +89,13 @@ The mechanics are inspired by Yakuza 0's real estate minigame. All characters, g
 
 ### Lots
 - About 10 lots per area, including the Xiaoxiao lot. Each has a business category, a ☀ day or 🌙 night tag, a price and an income rate.
-- Prices and income scale about ×100 per area.
+- **9 lots per area:** 6 to buy, 2 held by the lieutenants, 1 Xiaoxiao branch. The lists live in `src/game/content/areas.ts`.
+- Prices scale ×100 per area, following Wanhua's curve. Income grows less, so each area pays back slower than Wanhua: Ximending ×8 (with cheaper lots, ×0.6 price and ×1.25 income), Zhongshan ×64, East ×400, Xinyi ×800 (prices ×1.5, income ×1.5). Tuned with `npm run sim`.
 - **Upgrades:** the first upgrade costs the lot's price, and each level after costs ×1.17 more (tuned with `npm run sim`). Income doubles at levels 10, 25, 50 and 100.
 - Lot art changes at levels 25, 50 and 100. For the first pass, the code shows a tier badge on one icon.
 - Upgrade toggle: ×1 / ×10 / Max / **Next ×2** (every level up to the next income-doubling milestone, or 10 levels once all are reached). The choice is remembered. Press and hold to keep upgrading.
 
-### Lot categories (draft)
+### Lot categories
 
 | Area | Categories |
 |---|---|
@@ -138,7 +139,8 @@ Rivals periodically lean on your lots in their area.
 - **Market share** = what you've invested ÷ (what you've invested + the rival's stake). The rival's stake is the gang's own base holdings (which include the lieutenant-held lots), plus 1.5× the price of every unlocked lot you don't own yet, including the Xiaoxiao branch. Unlocking a lieutenant's lot never lowers your share.
   - At 25%, 50% and 75% you can fight the first lieutenant, the second lieutenant and the boss.
   - Lieutenants hold some lots locked until you beat them.
-- **Claiming an area:** income in that area doubles, the remaining lots are discounted, and the boss joins your collection.
+- **Claiming an area:** income in that area doubles, lots you don't own there yet cost 25% less, shakedowns stop there, the price index jumps by 10, and the boss joins your collection.
+- **Area twists:** Zhongshan's lots (all night businesses) earn ×2 at night instead of ×1.5. In East District one business type is "hot" and earns ×2; it rotates every game day (boutique → café → nightclub → department store).
 - **The price index** starts at 100 each run. It rises with buys and milestones and jumps on claims. It multiplies income and property values, drives Face at cash-out, and sets how many floors 101 has.
 
 ### Automation (each step is unlocked)
@@ -148,15 +150,16 @@ Rivals periodically lean on your lots in their area.
 4. Auto-buy the cheapest lot.
 5. Auto-assign the best staff.
 
-Steps 1–2 unlock during a run. Steps 3–5 are permanent Face upgrades.
+Steps 1–2 unlock during a run. Steps 3–5 are permanent Face upgrades, each with an on/off switch (auto-upgrade is switched per area). Automation only runs while the game is open.
 
 ### Street events (optional pop-ups on map stations)
 - **Temple procession:** tap for a bonus.
 - **Walk-in recruit:** a free N or R card.
 - **Broker tip:** a lot is about to jump in value. Sometimes the tip comes from the Xiaoxiao agent.
 - **Scratch-card drop.**
-- **Hot trend** (East District).
+- **Hot trend** (East District): built into the area as the rotating hot type.
 - **Xiaoxiao billboard or news.**
+- **Built so far:** one event at a time, every 200–360 s while the game is open, waiting 90 s at a random open station. Temple procession pays 2 minutes of income; a dropped scratch card pays 1; a walk-in recruit is a free N (70%) or R card; a broker tip raises the price index by 2. About a third of tips come from a smiling Xiaoxiao agent.
 
 ---
 
@@ -246,7 +249,7 @@ Steps 1–2 unlock during a run. Steps 3–5 are permanent Face upgrades.
 
 ### Rewards
 - **First win:** unlocks lots or claims the area. The lieutenant or boss joins your collection, and you get gacha currency: 10 incense money for a lieutenant, 20 incense money and 1 lottery ticket for a boss.
-- **Rematches:** available any time. A win pays 1 scratch card.
+- **Rematches:** available any time. A win pays 1 scratch card and XP, at most once per fight every 5 minutes (so quick wins can't be farmed).
 - **XP for the whole squad:** 60 for a first win, 30 for any other win, 12 for a loss.
 - **Claiming an area** doubles income on its lots and ends shakedowns there.
 
@@ -323,9 +326,9 @@ No real money anywhere.
 
 ### Cashing out (金盆洗手)
 - **Unlocks** after the first Wanhua claim.
-- **Face reward:** about the square root of your **best** net worth this run, plus a bonus for each area claimed this run, plus underdog bonuses.
+- **Face reward:** floor(√(best net worth this run ÷ NT$10億)), plus 2 per area claimed this run, plus 1 per underdog win (a first win within 5% of the threshold). A cash-out also pays 1 lottery ticket.
 - The button always shows "Cash out now: +X Face" and how far you are from the next Face.
-- When cashing out would raise your Face by 50% or more, the button glows and the game suggests it's a good time to retire.
+- When cashing out would raise your Face by 50% or more (and at least 10 Face, so a first cash-out waits for about a Ximending claim), the button glows and the game suggests it's a good time to retire.
 - **Ceremony:** one illustration, then "…but nobody stays retired."
 
 | Resets | Stays |
@@ -333,14 +336,14 @@ No real money anywhere.
 | Cash, lots, upgrades, area control, price index, safe | Cards, stars, levels, binder, draw currencies, guarantee counters, Face and Face upgrades, slot unlocks, automation |
 
 ### Face upgrade tree
-Four branches, about 30 upgrades in total for Chapter 1, with costs that rise as you buy more:
+Four branches, 18 upgrades (most with several levels), with costs that rise as you buy more. Defined in `src/game/content/face.ts`:
 
 | Branch | Upgrades |
 |---|---|
-| Business 生意 | More income, cheaper lots and upgrades, start with cash, start with Wanhua lots |
-| Idle 閒 | Safe 4h → 24h, accountant from the start, auto-upgrade, auto-buy, auto-staff |
-| Muscle 拳頭 | Stronger army, faster commander ultimates, bigger Home Turf bonus, skills partly charged at the start of a fight |
-| Network 人脈 | More street events, better scratch odds, more incense money, faster index growth |
+| Business 生意 | Good Name: income +25%/level (20) · Hard Bargain: lots −5%/level (5) · Contractor Friends: upgrades −4%/level (5) · Seed Money: start cash ×10/level (6) · Old Turf: start with 2 Wanhua lots at Lv 10 per level (3) |
+| Idle 閒 | Bigger Safe: +2 h/level, 4 → 24 h (10) · Bookkeeper on Staff · Duty Roster (auto-staff) · Standing Orders (auto-upgrade per area) · Land Scout (auto-buy) |
+| Muscle 拳頭 | Training: army stats +10%/level (20) · Presence: ultimates charge 15%/level faster (3) · Local Hero: Home Turf +2% per Security per level (5) · Warmed Up: skills start 15%/level charged (4) |
+| Network 人脈 | Street Smarts: events 25%/level more often (3) · Lucky Hands: scratch SR +1.5%, SSR +0.5% per level (3) · Temple Regular: Turf War incense +50%/level (3) · Market Buzz: index grows 25%/level faster (4) |
 
 ### Pacing targets (to tune)
 
@@ -350,6 +353,8 @@ Four branches, about 30 upgrades in total for Chapter 1, with costs that rise as
 | 2–3 | About a day each | East District |
 | 4–6 | About a day each | Xinyi clear and fireworks |
 | After | Ongoing | 新店 and the binder |
+
+Simulated with a perfect, always-online player (`npm run sim`): run 1 claims Ximending at about 55 min and reaches Zhongshan's lieutenants at 2.5–3.3 h. With early upgrades (Good Name 4, a few discounts) East District's first lieutenant comes at about 6.5 h. A strong late run (Good Name 12 and the other Business upgrades maxed) claims Xinyi at about 17 h. Fights are tuned so the squad you'd have at that point wins about 60% by day and nearly always at night (`npm run sim:fights`).
 
 **Notoriety (名氣)** levels for after the story are **parked until the user has played a build.**
 
@@ -448,7 +453,7 @@ Turf Wars launch from an area screen.
 
 ## Open items
 - Xiaoxiao Realty characters: secret boss and 2 lieutenants
-- Full lot lists per area, plus balancing numbers
+- Balancing after playtests (`npm run sim` and `npm run sim:fights` hold the current targets)
 - Notoriety levels (after a playtest)
 - Sound (later)
 - Database and auth provider (milestone 5)

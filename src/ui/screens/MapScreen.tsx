@@ -3,7 +3,12 @@ import { phaseAt } from '../../game/clock';
 import { isAreaOpen, marketShare } from '../../game/economy';
 import { formatPercent } from '../../game/format';
 import type { AreaId, GameState } from '../../game/types';
-import { useGame, useNow } from '../store';
+import { store, useGame, useNow } from '../store';
+import { CHARACTERS } from '../../game/content/characters';
+import { claimEvent, EVENT_INFO, type EventReward } from '../../game/events';
+import { formatMoney } from '../../game/format';
+import { update } from '../engine';
+import { gameNow } from '../time';
 
 interface Node {
   id: AreaId;
@@ -20,9 +25,10 @@ const NODES: Node[] = [
   { id: 'xinyi', x: 356, y: 250, label: 'below' },
 ];
 
-/** Taipei 101 progress: floors built, driven by the price index. */
+/** Taipei 101 progress: floors built, driven by the price index. Only claiming Xinyi tops it out. */
 export function towerFloors(s: GameState): number {
-  return Math.max(4, Math.min(101, Math.round((s.index - 100) * 2.5) + 4));
+  if (s.areas.xinyi.boss) return 101;
+  return Math.max(4, Math.min(100, Math.round((s.index - 100) * 0.6) + 4));
 }
 
 function Tower({ x, baseY, floors, night }: { x: number; baseY: number; floors: number; night: boolean }) {
@@ -53,6 +59,24 @@ function Tower({ x, baseY, floors, night }: { x: number; baseY: number; floors: 
   );
 }
 
+function eventText(r: EventReward, fmt: 'cjk' | 'kmb'): string {
+  switch (r.event.kind) {
+    case 'procession':
+      return `A temple procession passes by, and the crowd spends big: +${formatMoney(r.cash ?? 0, fmt)}`;
+    case 'scratch':
+      return 'Someone dropped a scratch card 刮刮樂. Finders keepers: +1 scratch card';
+    case 'recruit': {
+      const c = r.card;
+      const name = c ? CHARACTERS[c.charId]?.name : 'Someone';
+      return c?.isNew ? `${name} walks in looking for work, and joins your crew!` : `${name} drops by again: ★${c?.starsAfter}`;
+    }
+    case 'tip':
+      return r.event.xiaoxiao
+        ? `A smiling Xiaoxiao agent shares a "friendly" tip 😊 Prices tick up: index +${(r.index ?? 0).toFixed(1)}`
+        : `A broker tips you off about a deal. Prices tick up: index +${(r.index ?? 0).toFixed(1)}`;
+  }
+}
+
 export function MapScreen({ onOpenArea, onLocked }: { onOpenArea: (id: AreaId) => void; onLocked: (msg: string) => void }) {
   const s = useGame();
   const now = useNow(5000);
@@ -70,6 +94,14 @@ export function MapScreen({ onOpenArea, onLocked }: { onOpenArea: (id: AreaId) =
     `★ SCOOTER PARKING CRACKDOWN IN XIMENDING`,
     `★ LAND PRICES UP AGAIN, SAY BROKERS`,
   ].join('   ');
+
+  const takeEvent = () => {
+    const r = claimEvent(store.get(), Math.random, gameNow());
+    if (!r) return;
+    update(() => r.state);
+    onLocked(eventText(r.reward, s.settings.numberFormat));
+    navigator.vibrate?.(12);
+  };
 
   const tapArea = (id: AreaId) => {
     if (isAreaOpen(s, id)) return onOpenArea(id);
@@ -133,6 +165,35 @@ export function MapScreen({ onOpenArea, onLocked }: { onOpenArea: (id: AreaId) =
             {/* Taipei 101 rising over Xinyi */}
             <Tower x={356} baseY={226} floors={floors} night={night} />
 
+            {/* Street event */}
+            {s.event &&
+              (() => {
+                const n = NODES.find((x) => x.id === s.event!.area);
+                if (!n) return null;
+                const info = EVENT_INFO[s.event.kind];
+                const ex = n.x + (n.label === 'right' ? -30 : 24);
+                const ey = n.y - 34;
+                return (
+                  <g
+                    className="event-btn"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${info.name} at ${AREAS[n.id].name}. Tap to take it.`}
+                    onClick={takeEvent}
+                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && takeEvent()}
+                  >
+                    <circle cx={ex} cy={ey} r="22" fill="transparent" />
+                    <circle cx={ex} cy={ey} r="15" fill={s.event.xiaoxiao ? '#FFD34D' : '#FF3EA5'} stroke={ink} strokeWidth="3">
+                      <animate attributeName="r" values="14;17;14" dur="1.2s" repeatCount="indefinite" />
+                    </circle>
+                    <text x={ex} y={ey + 6} textAnchor="middle" fontSize="16" fontWeight="900" fill="#1e1b2e" fontFamily="'Noto Serif TC', serif">
+                      {s.event.xiaoxiao ? '笑' : info.glyph}
+                    </text>
+                    <path d={`M${ex - 4} ${ey + 14} L${ex} ${ey + 22} L${ex + 4} ${ey + 14}`} fill={ink} />
+                  </g>
+                );
+              })()}
+
             {/* Area stations */}
             {NODES.map((n) => {
               const area = AREAS[n.id];
@@ -180,7 +241,9 @@ export function MapScreen({ onOpenArea, onLocked }: { onOpenArea: (id: AreaId) =
             })}
           </svg>
         </div>
-        <p className="map-hint">Tap Wanhua to start buying. Each area belongs to a gang boss until you take it.</p>
+        <p className="map-hint">
+          {s.event ? 'Something is happening at a station! Tap the bubble before it moves on.' : 'Tap an open station to buy lots there. Each area belongs to a gang boss until you take it.'}
+        </p>
       </div>
     </div>
   );

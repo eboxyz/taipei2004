@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import { createBattle, fire, stepBattle, type Battle, type BattleEvent, type BattleInput, type Unit } from '../../game/battle';
 import { classOf } from '../../game/characters';
 import { phaseAt, secondsToNextPhase } from '../../game/clock';
-import { ALL_LOTS, AREAS, FACTIONS } from '../../game/content/areas';
+import { ALL_LOTS, AREAS, AREA_ORDER, FACTIONS } from '../../game/content/areas';
+import { Fireworks } from '../components/Ceremony';
 import { CHARACTERS } from '../../game/content/characters';
 import { FIGHTS, type FightDef } from '../../game/content/fights';
 import { QUICK_CLAIM_RATIO, SHARE_BONUS_PER_STEP } from '../../game/constants';
@@ -16,6 +17,7 @@ import {
   effectiveSquad,
   isFirstWin,
   recommendedPower,
+  rematchCooldown,
   resolveFight,
   type FightResult,
 } from '../../game/turf';
@@ -70,6 +72,7 @@ function Prep({ fight, phase, onFight, onQuick }: { fight: FightDef; phase: Phas
   const leader = CHARACTERS[fight.leader]!;
   const rival = FACTIONS[AREAS[fight.area].rival];
   const rematch = !isFirstWin(s, fight);
+  const cooldown = rematchCooldown(s, fight.id, gameNow());
   return (
     <>
       <div className="turf-scroll">
@@ -87,7 +90,11 @@ function Prep({ fight, phase, onFight, onQuick }: { fight: FightDef; phase: Phas
             <p>{fight.intro}</p>
             <p className="rival-share">
               Market share {formatPercent(marketShare(s, fight.area))}
-              {rematch ? ' · rematches pay XP and a scratch card' : ''}
+              {rematch
+                ? cooldown > 0
+                  ? ` · rematch rewards ready in ${Math.ceil(cooldown / 60000)} min`
+                  : ' · rematches pay XP and a scratch card'
+                : ''}
             </p>
           </div>
         </section>
@@ -427,11 +434,15 @@ function BattleUnit({ u, now, anim, floats, manual, onTap }: { u: Unit; now: num
 
 function Results({ fight, result, hints, onAgain, onClose }: { fight: FightDef; result: FightResult; hints: string[]; onAgain: () => void; onClose: () => void }) {
   const win = result.outcome === 'win';
+  const [show, setShow] = useState(!!result.fireworks);
   const leader = CHARACTERS[fight.leader]!;
   const area = AREAS[fight.area];
   const joined = result.joined ? CHARACTERS[result.joined] : null;
   const rows: { icon: string; text: string }[] = [];
-  if (result.claimed) rows.push({ icon: '🏮', text: `${area.name} is yours: income ×2 on every lot here, and no more shakedowns.` });
+  if (result.cooling) rows.push({ icon: '⏳', text: 'Rematch rewards are cooling down. Fight again in a few minutes for XP and a scratch card.' });
+  if (result.claimed) rows.push({ icon: '🏮', text: `${area.name} is yours: income ×2 on every lot here, lots you don't own cost 25% less, and no more shakedowns.` });
+  if (result.indexJump) rows.push({ icon: '指', text: `Price index +${result.indexJump.toFixed(1)}` });
+  if (result.underdog) rows.push({ icon: '面', text: 'Underdog win, right at the threshold: +1 Face when you cash out' });
   for (const id of result.lotsUnlocked) rows.push({ icon: '🔓', text: `${ALL_LOTS[id]?.name} is for sale.` });
   if (result.slotsUnlocked) rows.push({ icon: '➕', text: `New squad slot: ${SLOT_NAMES[result.slotsUnlocked - 3]}.` });
   if (result.starUp) rows.push({ icon: '★', text: `${CHARACTERS[result.starUp.charId]?.name} is now ★${result.starUp.stars}` });
@@ -440,12 +451,15 @@ function Results({ fight, result, hints, onAgain, onClose }: { fight: FightDef; 
   const bossTickets = result.lottery - result.binderPages.length;
   if (bossTickets > 0) rows.push({ icon: '樂', text: `+${bossTickets} lottery ticket 樂透` });
   if (result.scratch) rows.push({ icon: '刮', text: `+${result.scratch} scratch card 刮刮樂` });
-  rows.push({ icon: '★', text: `+${result.xp} XP for everyone in the squad` });
+  if (result.xp) rows.push({ icon: '★', text: `+${result.xp} XP for everyone in the squad` });
   for (const l of result.levelUps) rows.push({ icon: '▲', text: `${CHARACTERS[l.charId]?.name} reached Lv ${l.level}` });
-  if (result.claimed && area.id === 'wanhua') rows.push({ icon: '🚇', text: 'Ximending is open on the map.' });
+  const nextArea = AREA_ORDER[AREA_ORDER.indexOf(area.id) + 1];
+  if (result.claimed && nextArea && !AREAS[nextArea].secret) rows.push({ icon: '🚇', text: `${AREAS[nextArea].name} is open on the map.` });
+  if (result.claimed && area.id === 'wanhua') rows.push({ icon: '盆', text: 'Cash-out 金盆洗手 is open in the Office.' });
 
   return (
     <div className="turf-scroll result" data-outcome={result.outcome}>
+      {show && <Fireworks full={result.fireworks === 'full'} onClose={() => setShow(false)} />}
       <div className="stamp" aria-hidden>
         {win ? '勝' : '敗'}
       </div>
@@ -520,7 +534,7 @@ export function TurfWar({ fightId, onClose }: { fightId: string; onClose: () => 
   };
   const finish = (outcome: 'win' | 'lose', fightPhase: Phase, power: number) => {
     const before = store.get();
-    const { state, result } = resolveFight(before, fightId, outcome);
+    const { state, result } = resolveFight(before, fightId, outcome, gameNow());
     update(() => state);
     setStage({ kind: 'result', result, hints: outcome === 'lose' ? lossHints(before, fight, fightPhase, power) : [] });
     navigator.vibrate?.(outcome === 'win' ? [20, 40, 60] : 30);

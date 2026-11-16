@@ -1,5 +1,5 @@
 /** Tuning knobs. Change these, then run `npm run sim` to check pacing. */
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 /** Upgrade cost multiplier per level. */
 export const UPGRADE_GROWTH = 1.17;
@@ -66,6 +66,8 @@ export const QUICK_CLAIM_RATIO = 2;
 export const FIGHT_XP_WIN = 30;
 export const FIGHT_XP_FIRST_WIN = 60;
 export const FIGHT_XP_LOSS = 12;
+/** A rematch pays XP and a scratch card at most once per fight in this window (stops quick-win farming). */
+export const REMATCH_COOLDOWN_MS = 5 * 60_000;
 
 /* ---------- Draws ---------- */
 
@@ -77,3 +79,27 @@ export const SKILL_STAR = 3;
 export const AURA_STAR = 5;
 export const SKILL_STAR_MULT = 1.25;
 export const AURA_STAR_MULT = 1.5;
+
+/* ---------- Full run ---------- */
+
+/** Price index jump when you claim an area. */
+export const CLAIM_INDEX = 10;
+/** Unowned lots in a claimed area cost this much less. */
+export const CLAIM_LOT_DISCOUNT = 0.25;
+/** Zhongshan's night businesses earn this much at night (instead of IN_PHASE_MULT). */
+export const ZHONGSHAN_NIGHT_MULT = 2;
+/** East District's hot business type earns this multiple. */
+export const HOT_MULT = 2;
+export const EAST_HOT_ORDER = ['boutique', 'cafe', 'nightclub', 'department_store'] as const;
+
+/** Face from a cash-out: floor(sqrt(best net worth / FACE_DIVISOR)) + per-claim and underdog bonuses. */
+export const FACE_DIVISOR = 1e9;
+export const FACE_PER_CLAIM = 2;
+export const FACE_PER_UNDERDOG = 1;
+/** Winning within this much of a fight's threshold counts as an underdog win. */
+export const UNDERDOG_MARGIN = 0.05;
+
+/** Street events: one at a time, every few minutes, while the game is open. */
+export const EVENT_MIN_S = 200;
+export const EVENT_MAX_S = 360;
+export const EVENT_LIFETIME_S = 90;

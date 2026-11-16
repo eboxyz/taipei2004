@@ -13,6 +13,8 @@ const N = Number(process.env.N ?? 400);
 
 // Tuning overrides, e.g. wanhua_lt1="1:0.7,2:1" sets level:scale per enemy unit.
 for (const f of Object.values(FIGHTS)) {
+  const k = process.env[`S_${f.id}`];
+  if (k) f.strength = Number(k);
   const o = process.env[f.id];
   if (!o) continue;
   o.split(',').forEach((pair, i) => {
@@ -23,14 +25,21 @@ for (const f of Object.values(FIGHTS)) {
   });
 }
 
-function withCrew(levels: Record<string, number>, slots: number, extra: Partial<GameState> = {}): GameState {
+function withCrew(levels: Record<string, number>, slots: number, extra: Partial<GameState> = {}, stars = 1, training = 0): GameState {
   const s = initialState(0);
   const characters = { ...s.characters };
-  for (const [id, level] of Object.entries(levels)) characters[id] = { level, xp: 0, stars: 1 };
-  // Hai-shu guards a Wanhua lot (Home Turf), A-Cai manages one.
+  for (const [id, level] of Object.entries(levels)) characters[id] = { level, xp: 0, stars };
+  // Hai-shu guards a lot in the fight's area (Home Turf), A-Cai manages one.
   const lots = { w1: { level: 10, invested: 0, security: 'hai_shu', manager: 'a_cai' } };
-  return { ...s, characters, lots, meta: { ...s.meta, squadSlots: slots }, ...extra };
+  return { ...s, characters, lots, meta: { ...s.meta, squadSlots: slots, upgrades: { training } }, ...extra };
 }
+
+const lv = (ids: string[], level: number) => Object.fromEntries(ids.map((id) => [id, level]));
+const STARTERS = ['hai_shu', 'a_di', 'a_cai'];
+const WANHUA = ['a_biao', 'gui_yi', 'kun_bo'];
+const XIMENDING = ['xiao_zhen', 'a_gan', 'a_jie'];
+const ZHONGSHAN = ['a_jian', 'coco', 'yue_jie'];
+const EAST = ['da_kuai', 'vivi', 'jin_shao'];
 
 const scenarios: { fight: string; label: string; state: GameState }[] = [
   { fight: 'wanhua_lt1', label: 'starters Lv1', state: withCrew({ hai_shu: 1, a_di: 1, a_cai: 1 }, 3) },
@@ -39,9 +48,26 @@ const scenarios: { fight: string; label: string; state: GameState }[] = [
   { fight: 'wanhua_lt2', label: '+A-Biao Lv2, starters Lv3', state: withCrew({ hai_shu: 3, a_di: 3, a_cai: 3, a_biao: 2 }, 4) },
   { fight: 'wanhua_boss', label: '+Gui-yi Lv1, A-Biao Lv2, starters Lv3', state: withCrew({ hai_shu: 3, a_di: 3, a_cai: 3, a_biao: 2, gui_yi: 1 }, 5) },
   { fight: 'wanhua_boss', label: 'Gui-yi Lv3, A-Biao Lv4, starters Lv4', state: withCrew({ hai_shu: 4, a_di: 4, a_cai: 4, a_biao: 4, gui_yi: 3 }, 5) },
+  // Run 1, about an hour in: Wanhua crew, a couple of draws.
+  { fight: 'ximending_lt1', label: 'run 1: crew Lv5, Wanhua cards Lv3', state: withCrew({ ...lv(STARTERS, 5), ...lv(WANHUA, 3), intern: 2 }, 6) },
+  { fight: 'ximending_lt2', label: 'run 1: + Xiao Zhen', state: withCrew({ ...lv(STARTERS, 6), ...lv(WANHUA, 4), intern: 3, xiao_zhen: 1 }, 6) },
+  { fight: 'ximending_boss', label: 'run 1: + A-Gan', state: withCrew({ ...lv(STARTERS, 6), ...lv(WANHUA, 5), intern: 3, xiao_zhen: 2, a_gan: 1 }, 6) },
+  // Run 2: full squad, Training 3.
+  { fight: 'zhongshan_lt1', label: 'run 2: Lv10, Training 3', state: withCrew({ ...lv(STARTERS, 10), ...lv(WANHUA, 9), ...lv(XIMENDING, 7) }, 7, {}, 1, 3) },
+  { fight: 'zhongshan_lt2', label: 'run 2: + A-Jian', state: withCrew({ ...lv(STARTERS, 11), ...lv(WANHUA, 10), ...lv(XIMENDING, 8), a_jian: 1 }, 7, {}, 1, 3) },
+  { fight: 'zhongshan_boss', label: 'run 2: + Coco', state: withCrew({ ...lv(STARTERS, 11), ...lv(WANHUA, 10), ...lv(XIMENDING, 8), a_jian: 2, coco: 1 }, 7, {}, 1, 3) },
+  // Run 3: Lv15, ★2, Training 6.
+  { fight: 'east_lt1', label: 'run 3: Lv15 ★2, Training 6', state: withCrew({ ...lv(STARTERS, 15), ...lv(WANHUA, 14), ...lv(XIMENDING, 13), ...lv(ZHONGSHAN, 10) }, 7, {}, 2, 6) },
+  { fight: 'east_lt2', label: 'run 3: + Da-kuai', state: withCrew({ ...lv(STARTERS, 16), ...lv(WANHUA, 15), ...lv(XIMENDING, 14), ...lv(ZHONGSHAN, 11), da_kuai: 1 }, 7, {}, 2, 6) },
+  { fight: 'east_boss', label: 'run 3: + Vivi', state: withCrew({ ...lv(STARTERS, 16), ...lv(WANHUA, 15), ...lv(XIMENDING, 14), ...lv(ZHONGSHAN, 12), da_kuai: 2, vivi: 1 }, 7, {}, 2, 6) },
+  // Runs 4+: Lv22, ★3, Training 10.
+  { fight: 'xinyi_lt1', label: 'run 4: Lv22 ★3, Training 10', state: withCrew({ ...lv(STARTERS, 22), ...lv(WANHUA, 21), ...lv(XIMENDING, 20), ...lv(ZHONGSHAN, 18), ...lv(EAST, 15) }, 7, {}, 3, 10) },
+  { fight: 'xinyi_lt2', label: 'run 4: + Secretary Lin', state: withCrew({ ...lv(STARTERS, 23), ...lv(WANHUA, 22), ...lv(XIMENDING, 21), ...lv(ZHONGSHAN, 19), ...lv(EAST, 16), secretary_lin: 1 }, 7, {}, 3, 10) },
+  { fight: 'xinyi_boss', label: 'run 4: + Tie-ge', state: withCrew({ ...lv(STARTERS, 23), ...lv(WANHUA, 22), ...lv(XIMENDING, 21), ...lv(ZHONGSHAN, 19), ...lv(EAST, 17), secretary_lin: 2, tie_ge: 1 }, 7, {}, 3, 10) },
 ];
 
-for (const sc of scenarios) {
+const only = process.env.ONLY;
+for (const sc of scenarios.filter((x) => !only || x.fight.startsWith(only))) {
   const fight = FIGHTS[sc.fight]!;
   const rec = recommendedPower(fight);
   const row: string[] = [];
@@ -62,4 +88,34 @@ for (const sc of scenarios) {
     row.push(`${phase}: power ${power} → win ${Math.round((wins / N) * 100)}% (${wins ? Math.round(tWin / wins) : '-'}s, avg ${Math.round(tAll / N)}s)`);
   }
   console.log(`${sc.fight.padEnd(12)} rec ${String(rec).padStart(4)} | ${sc.label}\n    ${row.join('\n    ')}`);
+}
+
+// TUNE=1: binary-search each fight's strength so its first (expected) squad wins ~60% by day.
+if (process.env.TUNE) {
+  const seen = new Set<string>();
+  console.log('\nTuned strengths (day win ≈ 60% for the expected squad):');
+  for (const sc of scenarios.filter((x) => !only || x.fight.startsWith(only))) {
+    if (seen.has(sc.fight)) continue;
+    seen.add(sc.fight);
+    const fight = FIGHTS[sc.fight]!;
+    const rate = (k: number) => {
+      fight.strength = k;
+      const input = battleInputFor(sc.state, sc.fight, 'day');
+      let w = 0;
+      for (let seed = 1; seed <= 60; seed++) if (runBattle(input, seed).outcome === 'win') w++;
+      return w / 60;
+    };
+    let lo = 0.3;
+    let hi = 4;
+    for (let i = 0; i < 12; i++) {
+      const mid = (lo + hi) / 2;
+      if (rate(mid) > 0.6) lo = mid;
+      else hi = mid;
+    }
+    const k = Number(((lo + hi) / 2).toFixed(2));
+    fight.strength = k;
+    const power = buildYourSide(sc.state, fight, 'day').power;
+    const r = runBattle(battleInputFor(sc.state, sc.fight, 'day'), 1);
+    console.log(`  ${sc.fight.padEnd(15)} strength ${k}  expected power ${power}  (~${Math.round(r.t)}s)`);
+  }
 }

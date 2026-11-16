@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { canHireAccountant } from './game/actions';
 import { canDraw } from './game/gacha';
+import { canCashOut, cashOutPreview } from './game/face';
 import { gameNow } from './ui/time';
-import { ALL_LOTS, AREAS } from './game/content/areas';
+import { ALL_LOTS, AREAS, AREA_ORDER } from './game/content/areas';
 import { CHARACTERS } from './game/content/characters';
 import { ACCOUNTANT_COST } from './game/constants';
 import { formatMoney } from './game/format';
@@ -33,6 +34,8 @@ function describe(e: GameEvent, s: GameState): Omit<Toast, 'id'> | null {
     }
     case 'shakedown-unguarded':
       return { text: `Someone leaned on ${ALL_LOTS[e.lotId]?.name}. Post Security there to earn shakedown bonuses.` };
+    case 'auto-bought':
+      return { tone: 'good', text: `Land Scout bought ${ALL_LOTS[e.lotId]?.name}.` };
     case 'level-up':
       return { tone: 'good', text: `${CHARACTERS[e.charId]?.name} reached Lv ${e.level}!` };
     default:
@@ -74,14 +77,14 @@ function Game() {
 
   const freeCrew = Object.keys(s.characters).some((id) => !postOf(s, id));
   const openSlots = Object.values(s.lots).some((ls) => !ls.manager || !ls.security);
-  const fightReady = (['wanhua'] as AreaId[]).some((a) =>
+  const fightReady = AREA_ORDER.some((a) =>
     (['lt1', 'lt2', 'boss'] as const).some((k) => !s.areas[a][k] && fightFor(a, k) && marketShare(s, a) >= SHARE_THRESHOLDS[k]),
-  );
+  ) || !!s.event;
   const dots: Partial<Record<Tab, boolean>> = {
     map: fightReady,
     crew: freeCrew && openSlots,
-    office: canHireAccountant(s) && s.cash >= ACCOUNTANT_COST,
     draws: !s.zodiac || canDraw(s, 'temple', gameNow()).free,
+    office: (canHireAccountant(s) && s.cash >= ACCOUNTANT_COST) || (canCashOut(s) && cashOutPreview(s).goodTime),
   };
 
   return (

@@ -28,8 +28,13 @@ export function initialState(now: number): GameState {
     zodiac: null,
     draws: { templePity: 0, lotteryPity: 0, lastFreeTemple: null, count: { scratch: 0, temple: 0, lottery: 0 } },
     binderPaid: [],
-    run: { accountant: false },
-    meta: { safeHours: START_SAFE_HOURS, face: 0, squadSlots: 3 },
+    run: { accountant: false, claims: 0, underdog: 0 },
+    meta: { safeHours: START_SAFE_HOURS, face: 0, faceTotal: 0, squadSlots: 3, runs: 0, chapterClears: 0, upgrades: {}, claimedEver: [] },
+    auto: { upgrade: [], buy: false, staff: false },
+    cooldowns: {},
+    hot: null,
+    event: null,
+    eventIn: 240,
     settings: { numberFormat: 'cjk', buyMode: 1, battleSpeed: 1, battleAuto: true },
     stats: { shakedownsRepelled: 0, shakedownBonus: 0, lotsBought: 0, fightsWon: 0, fightsLost: 0 },
     shakedownIn: 120,
@@ -44,14 +49,27 @@ export function migrate(raw: unknown, now: number): GameState | null {
   if (!raw || typeof raw !== 'object') return null;
   const s = raw as Partial<GameState>;
   if (typeof s.version !== 'number' || s.version > SAVE_VERSION) return null;
-  // v2 added the squad, currencies and fight stats; v3 added zodiac, draws and the binder.
+  // v2 added the squad, currencies and fight stats; v3 added zodiac, draws and the binder;
+  // v4 added Face upgrades, cash-out, automation and street events.
   // Filling missing fields from a fresh state covers every step so far, and partial saves still load.
   const base = initialState(now);
   return {
     ...base,
     ...s,
-    run: { ...base.run, ...s.run },
-    meta: { ...base.meta, ...s.meta },
+    run: {
+      ...base.run,
+      ...s.run,
+      // Claims made before v4 still count toward this run's Face.
+      claims: s.run?.claims ?? Object.values(s.areas ?? {}).filter((p) => (p as AreaProgress).boss).length,
+    },
+    meta: {
+      ...base.meta,
+      ...s.meta,
+      upgrades: { ...s.meta?.upgrades },
+      // Saves from before v4 could already have claimed Wanhua.
+      claimedEver: s.meta?.claimedEver ?? (Object.entries(s.areas ?? {}) as [AreaId, AreaProgress][]).filter(([, p]) => p.boss).map(([a]) => a),
+    },
+    auto: { ...base.auto, ...s.auto },
     settings: { ...base.settings, ...s.settings },
     stats: { ...base.stats, ...s.stats },
     areas: { ...base.areas, ...s.areas },

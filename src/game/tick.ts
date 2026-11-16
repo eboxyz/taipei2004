@@ -2,6 +2,8 @@ import { AREAS, ALL_LOTS } from './content/areas';
 import { addXp, statsOf } from './characters';
 import { phaseAt } from './clock';
 import {
+  EAST_HOT_ORDER,
+  GAME_HOUR_MS,
   MANAGER_XP_PER_MIN,
   SHAKEDOWN_ATTEMPT_XP,
   SHAKEDOWN_BONUS_SECONDS,
@@ -11,6 +13,8 @@ import {
   SHAKEDOWN_XP,
 } from './constants';
 import { incomePerSec, lotIncome, netWorth, safeCapacity } from './economy';
+import { automate } from './auto';
+import { tickEvents } from './events';
 import type { GameEvent, GameState } from './types';
 
 export type Rng = () => number;
@@ -88,11 +92,24 @@ export function workManagers(state: GameState, seconds: number): { state: GameSt
   return { state: characters === state.characters ? state : { ...state, characters }, events };
 }
 
+/** East District's hot business type for the current game day. */
+export function hotCategory(now: number): string {
+  const day = Math.floor(now / (24 * GAME_HOUR_MS));
+  return EAST_HOT_ORDER[((day % EAST_HOT_ORDER.length) + EAST_HOT_ORDER.length) % EAST_HOT_ORDER.length]!;
+}
+
 /** Advances the game by `dt` seconds of active play. */
 export function tick(state: GameState, dt: number, now: number, rng: Rng = Math.random): { state: GameState; events: GameEvent[] } {
   const events: GameEvent[] = [];
-  const income = incomePerSec(state, phaseAt(now)) * dt;
-  let s = addIncome(state, income, state.run.accountant);
+  const hot = hotCategory(now);
+  let s = state.hot === hot ? state : { ...state, hot };
+  const income = incomePerSec(s, phaseAt(now)) * dt;
+  s = addIncome(s, income, s.run.accountant);
+
+  s = tickEvents(s, dt, rng);
+  const auto = automate(s);
+  s = auto.state;
+  events.push(...auto.events);
 
   const worked = workManagers(s, dt);
   s = worked.state;

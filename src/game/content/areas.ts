@@ -12,6 +12,78 @@ const wanhuaLots: LotDef[] = [
   { id: 'w9', area: 'wanhua', name: 'Xiaoxiao Realty', nameZh: '笑笑房屋', category: 'xiaoxiao_branch', price: 4e7, income: 0, lock: 'xiaoxiao' },
 ];
 
+/**
+ * Later areas follow Wanhua's price curve ×100 per area. Income grows less than price, so each area
+ * pays back slower than the last (×SLOWDOWN vs Wanhua); Face upgrades close the gap over runs.
+ * Tuned with `npm run sim`.
+ */
+export const SLOWDOWN: Record<AreaId, number> = { wanhua: 1, ximending: 8, zhongshan: 64, east: 400, xinyi: 800, xindian: 3200 };
+const TIER: Record<AreaId, number> = { wanhua: 0, ximending: 1, zhongshan: 2, east: 3, xinyi: 4, xindian: 5 };
+
+type LotSpec = [id: string, name: string, nameZh: string, category: string, lock?: 'lt1' | 'lt2' | 'xiaoxiao'];
+
+function areaLots(area: AreaId, priceFactor: number, incomeFactor: number, specs: LotSpec[]): LotDef[] {
+  const scale = Math.pow(100, TIER[area]);
+  return specs.map(([id, name, nameZh, category, lock], i) => {
+    const w = wanhuaLots[i]!;
+    const price = Number((w.price * scale * priceFactor).toPrecision(2));
+    const income = lock === 'xiaoxiao' ? 0 : Number(((w.income * scale * incomeFactor) / SLOWDOWN[area]).toPrecision(2));
+    return { id, area, name, nameZh, category, price, income, ...(lock ? { lock } : {}) };
+  });
+}
+
+// Ximending: fast income, low property values.
+const ximendingLots = areaLots('ximending', 0.6, 1.25, [
+  ['x1', 'Corner Comic Rental', '轉角租書店', 'comic_rental'],
+  ['x2', 'Hanzhong Street Clothes', '漢中街服飾', 'clothing_stall'],
+  ['x3', 'Ink Alley Tattoo', '刺青巷', 'tattoo_parlor'],
+  ['x4', 'Starlight Net Café', '星光網咖', 'internet_cafe'],
+  ['x5', 'Neon Arcade', '霓虹電玩', 'arcade'],
+  ['x6', 'Movie Street Streetwear', '電影街潮店', 'clothing_stall'],
+  ['x7', 'Ink Dragon Studio', '墨龍刺青', 'tattoo_parlor', 'lt1'],
+  ['x8', 'Token King Arcade', '代幣王電玩', 'arcade', 'lt2'],
+  ['x9', 'Xiaoxiao Realty', '笑笑房屋', 'xiaoxiao_branch', 'xiaoxiao'],
+]);
+
+// Zhongshan: night businesses only, with a stronger night bonus.
+const zhongshanLots = areaLots('zhongshan', 1, 1, [
+  ['z1', 'Alley Izakaya', '條通居酒屋', 'izakaya'],
+  ['z2', 'Lantern Lounge', '燈籠酒店', 'lounge'],
+  ['z3', 'Linsen Business Hotel', '林森商旅', 'business_hotel'],
+  ['z4', 'Golden Mic KTV', '金麥KTV', 'ktv'],
+  ['z5', 'Silver Fan Lounge', '銀扇酒店', 'lounge'],
+  ['z6', 'Encore KTV', '安可KTV', 'ktv'],
+  ['z7', 'Bow Tie Bar', '領結酒吧', 'izakaya', 'lt1'],
+  ['z8', 'Plaza Business Hotel', '廣場商旅', 'business_hotel', 'lt2'],
+  ['z9', 'Xiaoxiao Realty', '笑笑房屋', 'xiaoxiao_branch', 'xiaoxiao'],
+]);
+
+// East District: one "hot" business type earns double, rotating every game day.
+const eastLots = areaLots('east', 1, 1, [
+  ['e1', 'Alley Café', '巷弄咖啡', 'cafe'],
+  ['e2', 'Select Boutique', '選物精品', 'boutique'],
+  ['e3', 'Dunhua Store Counter', '敦化百貨專櫃', 'department_store'],
+  ['e4', 'Velvet Nightclub', '絲絨夜店', 'nightclub'],
+  ['e5', 'Runway Boutique', '伸展台精品', 'boutique'],
+  ['e6', 'Terrace Café', '露台咖啡', 'cafe'],
+  ['e7', 'VIP Room Club', '貴賓夜店', 'nightclub', 'lt1'],
+  ['e8', 'Platinum Department Store', '白金百貨', 'department_store', 'lt2'],
+  ['e9', 'Xiaoxiao Realty', '笑笑房屋', 'xiaoxiao_branch', 'xiaoxiao'],
+]);
+
+// Xinyi: the highest values in the city.
+const xinyiLots = areaLots('xinyi', 1.5, 1.5, [
+  ['y1', 'Xinyi Office Floor', '信義辦公室', 'office_tower'],
+  ['y2', 'Skyline Condo', '天際豪宅', 'luxury_condo'],
+  ['y3', 'Plaza Department Store', '廣場百貨', 'department_store'],
+  ['y4', 'Rooftop Nightclub', '頂樓夜店', 'nightclub'],
+  ['y5', 'Glass Tower', '玻璃大樓', 'office_tower'],
+  ['y6', 'Penthouse Residences', '頂層豪宅', 'luxury_condo'],
+  ['y7', 'City Hall Annex', '市府旁辦公大樓', 'office_tower', 'lt1'],
+  ['y8', 'Steel Frame Condo', '鋼骨豪宅', 'luxury_condo', 'lt2'],
+  ['y9', 'Xiaoxiao Realty', '笑笑房屋', 'xiaoxiao_branch', 'xiaoxiao'],
+]);
+
 export const AREAS: Record<AreaId, AreaDef> = {
   wanhua: {
     id: 'wanhua',
@@ -36,12 +108,12 @@ export const AREAS: Record<AreaId, AreaDef> = {
     station: 'Ximen',
     stationZh: '西門',
     rival: 'molong',
-    threat: 30,
-    rivalBase: 3e10,
+    threat: 25,
+    rivalBase: 3e8 * 100 * 0.6,
     lt1Id: 'xiao_zhen',
     lt2Id: 'a_gan',
     bossId: 'a_jie',
-    lots: [],
+    lots: ximendingLots,
   },
   zhongshan: {
     id: 'zhongshan',
@@ -51,12 +123,12 @@ export const AREAS: Record<AreaId, AreaDef> = {
     station: 'Zhongshan',
     stationZh: '中山',
     rival: 'yuejian',
-    threat: 80,
+    threat: 50,
     rivalBase: 3e12,
     lt1Id: 'a_jian',
     lt2Id: 'coco',
     bossId: 'yue_jie',
-    lots: [],
+    lots: zhongshanLots,
   },
   east: {
     id: 'east',
@@ -66,12 +138,12 @@ export const AREAS: Record<AreaId, AreaDef> = {
     station: 'Zhongxiao Dunhua',
     stationZh: '忠孝敦化',
     rival: 'jintangchi',
-    threat: 200,
+    threat: 90,
     rivalBase: 3e14,
     lt1Id: 'da_kuai',
     lt2Id: 'vivi',
     bossId: 'jin_shao',
-    lots: [],
+    lots: eastLots,
   },
   xinyi: {
     id: 'xinyi',
@@ -81,12 +153,12 @@ export const AREAS: Record<AreaId, AreaDef> = {
     station: 'Taipei City Hall',
     stationZh: '市政府',
     rival: 'tongtian',
-    threat: 500,
-    rivalBase: 3e16,
+    threat: 150,
+    rivalBase: 3e16 * 0.75,
     lt1Id: 'secretary_lin',
     lt2Id: 'tie_ge',
     bossId: 'tian_dong',
-    lots: [],
+    lots: xinyiLots,
   },
   xindian: {
     id: 'xindian',

@@ -3,9 +3,15 @@ import { CATEGORIES } from './content/categories';
 import { CHARACTERS } from './content/characters';
 import { binderIncomeMult, binderLotDiscount, binderSafeHours } from './binder';
 import { statsOf } from './characters';
+import { perk } from './perks';
 import {
   AVERAGE_PHASE_MULT,
+  CLAIM_LOT_DISCOUNT,
+  EAST_HOT_ORDER,
+  HOT_MULT,
   IN_PHASE_MULT,
+  START_SAFE_HOURS,
+  ZHONGSHAN_NIGHT_MULT,
   MAX_SAFE_HOURS,
   MILESTONES,
   RIVAL_STAKE,
@@ -43,8 +49,17 @@ export function managerMult(state: GameState, lotId: string): number {
 }
 
 export function phaseMult(lot: LotDef, mode: IncomeMode): number {
-  if (mode === 'average') return AVERAGE_PHASE_MULT;
-  return CATEGORIES[lot.category]?.tag === mode ? IN_PHASE_MULT : 1;
+  // Zhongshan is a night town: its lots earn more at night than anywhere else.
+  const inPhase = lot.area === 'zhongshan' ? ZHONGSHAN_NIGHT_MULT : IN_PHASE_MULT;
+  if (mode === 'average') return lot.area === 'zhongshan' ? (1 + ZHONGSHAN_NIGHT_MULT) / 2 : AVERAGE_PHASE_MULT;
+  return CATEGORIES[lot.category]?.tag === mode ? inPhase : 1;
+}
+
+/** East District's hot business type: ×2 while it's hot. Offline uses the average over the rotation. */
+export function hotMult(state: GameState, lot: LotDef, mode: IncomeMode): number {
+  if (lot.area !== 'east') return 1;
+  if (mode === 'average') return 1 + (HOT_MULT - 1) / EAST_HOT_ORDER.length;
+  return state.hot === lot.category ? HOT_MULT : 1;
 }
 
 export function lotIncome(state: GameState, lot: LotDef, mode: IncomeMode): number {
@@ -58,6 +73,8 @@ export function lotIncome(state: GameState, lot: LotDef, mode: IncomeMode): numb
     phaseMult(lot, mode) *
     managerMult(state, lot.id) *
     claim *
+    hotMult(state, lot, mode) *
+    perk.incomeMult(state) *
     binderIncomeMult(state, lot.area) *
     (state.index / 100)
   );
@@ -78,7 +95,7 @@ export function areaIncome(state: GameState, area: AreaId, mode: IncomeMode): nu
 
 export function safeHours(state: GameState): number {
   const accountants = Object.values(state.lots).filter((ls) => roleOf(ls.manager) === 'kuaiji').length;
-  return Math.min(MAX_SAFE_HOURS, state.meta.safeHours + accountants + binderSafeHours(state));
+  return Math.min(MAX_SAFE_HOURS, START_SAFE_HOURS + perk.safeHours(state) + accountants + binderSafeHours(state));
 }
 
 /** Safe capacity in NT$: N hours of average income. */
@@ -92,13 +109,14 @@ export function brokerDiscount(state: GameState, area: AreaId): number {
 }
 
 export function buyPrice(state: GameState, lot: LotDef): number {
-  return Math.ceil(lot.price * (1 - brokerDiscount(state, lot.area)) * (1 - binderLotDiscount(state)));
+  const claimed = state.areas[lot.area]?.boss ? 1 - CLAIM_LOT_DISCOUNT : 1;
+  return Math.ceil(lot.price * (1 - brokerDiscount(state, lot.area)) * (1 - binderLotDiscount(state)) * (1 - perk.lotDiscount(state)) * claimed);
 }
 
 /** Cost to go from `level` to `level + 1`. */
 export function upgradeCost(state: GameState, lot: LotDef, level: number): number {
   const scrivener = roleOf(state.lots[lot.id]?.manager) === 'daishu' ? 0.9 : 1;
-  return Math.ceil(lot.price * UPGRADE_BASE * Math.pow(UPGRADE_GROWTH, level - 1) * scrivener);
+  return Math.ceil(lot.price * UPGRADE_BASE * Math.pow(UPGRADE_GROWTH, level - 1) * scrivener * (1 - perk.upgradeDiscount(state)));
 }
 
 /** Total cost of `n` upgrades starting from `level`. */

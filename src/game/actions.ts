@@ -10,6 +10,7 @@ import {
   postOf,
   upgradeCostN,
 } from './economy';
+import { perk } from './perks';
 import type { GameState } from './types';
 
 export type ActionResult = { ok: true; state: GameState; milestones?: number[] } | { ok: false; reason: string };
@@ -27,7 +28,7 @@ export function buyLot(state: GameState, lotId: string): ActionResult {
     state: {
       ...state,
       cash: state.cash - price,
-      index: state.index + INDEX_PER_LOT,
+      index: state.index + INDEX_PER_LOT * perk.indexMult(state),
       lots: { ...state.lots, [lotId]: { level: 1, invested: price } },
       stats: { ...state.stats, lotsBought: state.stats.lotsBought + 1 },
     },
@@ -50,7 +51,7 @@ export function upgradeLot(state: GameState, lotId: string, n: number | 'max'): 
     state: {
       ...state,
       cash: state.cash - cost,
-      index: state.index + crossed.length * INDEX_PER_MILESTONE,
+      index: state.index + crossed.length * INDEX_PER_MILESTONE * perk.indexMult(state),
       lots: { ...state.lots, [lotId]: { ...ls, level: ls.level + count, invested: ls.invested + cost } },
     },
   };

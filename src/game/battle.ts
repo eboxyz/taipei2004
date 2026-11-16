@@ -36,6 +36,8 @@ export interface BattleInput {
   night: boolean;
   /** Template for troupe runners called in by a Procession, per side. */
   runner: Partial<Record<Side, UnitSpec>>;
+  /** Your Face upgrades: faster commander ultimates and skills that start part-charged. */
+  boost?: { ultCharge: number; startCharge: number };
 }
 
 export interface Unit {
@@ -239,6 +241,13 @@ export function createBattle(input: BattleInput, seed: number, auto = true): Bat
   };
   for (const s of input.you) addUnit(b, 'you', s);
   for (const s of input.them) addUnit(b, 'them', s);
+  const boost = input.boost;
+  if (boost)
+    for (const u of b.units)
+      if (u.side === 'you') {
+        if (u.commander) u.chargeTime /= 1 + boost.ultCharge;
+        else u.charge = Math.min(0.95, u.charge + boost.startCharge);
+      }
 
   // Opening auras.
   for (const side of ['you', 'them'] as Side[]) {

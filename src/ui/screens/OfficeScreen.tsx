@@ -4,10 +4,11 @@ import { ACCOUNTANT_COST, ACCOUNTANT_UNLOCK_LOTS } from '../../game/constants';
 import { netWorth, safeHours } from '../../game/economy';
 import { exportSave, importSave } from '../../game/save';
 import { Money } from '../components/bits';
-import { act, replaceState, resetGame } from '../engine';
+import { act, debugSkip, replaceState, resetGame, update } from '../engine';
 import { store, useGame } from '../store';
 import { towerFloors } from './MapScreen';
-import { gameNow } from '../time';
+import { DEBUG, gameNow } from '../time';
+import { AutomationPanel, CashOutPanel, FaceTree } from './FacePanel';
 
 export function OfficeScreen({ onToast }: { onToast: (text: string, tone?: 'good' | 'warn') => void }) {
   const s = useGame();
@@ -65,10 +66,9 @@ export function OfficeScreen({ onToast }: { onToast: (text: string, tone?: 'good
         </div>
       </section>
 
-      <section className="panel">
-        <h2>Cash out 金盆洗手</h2>
-        <p>Wash your hands in the golden basin, retire, and come back stronger. Arrives in a later build (milestone 4).</p>
-      </section>
+      <CashOutPanel />
+      <FaceTree onToast={onToast} />
+      <AutomationPanel />
 
       <section className="panel">
         <h2>Ledger</h2>
@@ -93,6 +93,10 @@ export function OfficeScreen({ onToast }: { onToast: (text: string, tone?: 'good
           <dd>
             <Money value={s.stats.shakedownBonus} />
           </dd>
+          <dt>Runs (cash-outs)</dt>
+          <dd>{s.meta.runs}</dd>
+          <dt>Face earned in total</dt>
+          <dd>{s.meta.faceTotal}</dd>
           <dt>Turf Wars won / lost</dt>
           <dd>
             {s.stats.fightsWon} / {s.stats.fightsLost}
@@ -149,8 +153,29 @@ export function OfficeScreen({ onToast }: { onToast: (text: string, tone?: 'good
         )}
       </section>
 
+      {DEBUG && (
+        <section className="panel debug-panel">
+          <h2>Dev tools</h2>
+          <p>Only in dev builds. The DEV button in the top bar changes game speed.</p>
+          <div className="row" style={{ justifyContent: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+            <button className="btn secondary small" onClick={() => debugSkip(3600)}>
+              Away 1 h
+            </button>
+            <button className="btn secondary small" onClick={() => debugSkip(8 * 3600)}>
+              Away 8 h
+            </button>
+            <button className="btn secondary small" onClick={() => update((st) => ({ ...st, meta: { ...st.meta, face: st.meta.face + 100, faceTotal: st.meta.faceTotal + 100 } }))}>
+              +100 Face
+            </button>
+            <button className="btn secondary small" onClick={() => update((st) => ({ ...st, currencies: { scratch: st.currencies.scratch + 10, incense: st.currencies.incense + 100, lottery: st.currencies.lottery + 3 } }))}>
+              +Draw currency
+            </button>
+          </div>
+        </section>
+      )}
+
       <p className="map-hint" style={{ textAlign: 'center' }}>
-        Taipei 2004 台北2004 · milestone 2 build
+        Taipei 2004 台北2004 · milestone 4 build
       </p>
     </div>
   );

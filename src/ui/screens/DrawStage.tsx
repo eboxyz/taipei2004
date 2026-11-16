@@ -14,7 +14,7 @@ import {
   featuredOn,
   LOTTERY_BALLS,
   LOTTERY_PITY,
-  ODDS,
+  oddsFor,
   poolFor,
   STICK_GRADE_EN,
   TEMPLE_PITY,
@@ -56,15 +56,16 @@ function doDraw(kind: DrawKind): DrawResult | null {
 
 export function OddsTable({ kind }: { kind: DrawKind }) {
   const now = gameNow();
+  const odds = oddsFor(useGame(), kind);
   return (
     <details className="odds">
       <summary>Odds and who's inside</summary>
       <table>
         <tbody>
-          {RARITY_ORDER.filter((r) => ODDS[kind][r] > 0).map((r) => (
+          {RARITY_ORDER.filter((r) => odds[r] > 0).map((r) => (
             <tr key={r}>
               <th data-rarity={r}>{r}</th>
-              <td className="pct">{(ODDS[kind][r] * 100).toFixed(1).replace(/\.0$/, '')}%</td>
+              <td className="pct">{(odds[r] * 100).toFixed(1).replace(/\.0$/, '')}%</td>
               <td>{poolFor(kind, r, now).map((id) => CHARACTERS[id]!.name).join(', ')}</td>
             </tr>
           ))}

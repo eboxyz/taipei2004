@@ -149,6 +149,19 @@ export interface Currencies {
   lottery: number;
 }
 
+export type EventKind = 'procession' | 'recruit' | 'scratch' | 'tip';
+
+/** A street event waiting at a map station. */
+export interface StreetEvent {
+  id: number;
+  area: AreaId;
+  kind: EventKind;
+  /** Tips sometimes come from a cheerful Xiaoxiao agent. */
+  xiaoxiao: boolean;
+  /** Seconds before it moves on. */
+  expiresIn: number;
+}
+
 export interface GameState {
   version: number;
   createdAt: number;
@@ -175,13 +188,42 @@ export interface GameState {
   binderPaid: FactionId[];
   run: {
     accountant: boolean;
+    /** Areas claimed this run. */
+    claims: number;
+    /** First wins taken right at the share threshold this run (extra Face). */
+    underdog: number;
   };
   meta: {
+    /** Legacy; the safe size now comes from Face upgrades. */
     safeHours: number;
+    /** Unspent Face 面子. */
     face: number;
+    /** All Face ever earned. */
+    faceTotal: number;
     /** Squad slots unlocked (3–7). Permanent. */
     squadSlots: number;
+    /** Cash-outs so far. */
+    runs: number;
+    /** Times Xinyi has been claimed (Chapter 1 clears). */
+    chapterClears: number;
+    /** Face upgrade levels by id. */
+    upgrades: Record<string, number>;
+    /** Areas ever claimed, in any run. */
+    claimedEver: AreaId[];
   };
+  /** Automation switches (each needs its Face upgrade). */
+  auto: {
+    upgrade: AreaId[];
+    buy: boolean;
+    staff: boolean;
+  };
+  /** Game time (ms) when each fight's rematch rewards are ready again. */
+  cooldowns: Record<string, number>;
+  /** East District's hot business type right now. */
+  hot: string | null;
+  event: StreetEvent | null;
+  /** Seconds until the next street event. */
+  eventIn: number;
   settings: {
     numberFormat: 'cjk' | 'kmb';
     buyMode: BuyMode;
@@ -203,4 +245,5 @@ export type GameEvent =
   | { kind: 'shakedown-repelled'; lotId: string; charId: string; bonus: number; scratch: boolean }
   | { kind: 'shakedown-unguarded'; lotId: string }
   | { kind: 'level-up'; charId: string; level: number }
-  | { kind: 'milestone'; lotId: string; level: number };
+  | { kind: 'milestone'; lotId: string; level: number }
+  | { kind: 'auto-bought'; lotId: string }

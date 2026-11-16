@@ -109,7 +109,7 @@ describe('safe and offline', () => {
 
   it('accountant collects straight to cash while online', () => {
     let s = must(buyLot(initialState(NOW), 'w1'));
-    s = { ...s, run: { accountant: true } };
+    s = { ...s, run: { ...s.run, accountant: true } };
     const before = s.cash;
     const r = tick(s, 1, NOW, () => 0.5);
     expect(r.state.cash).toBeGreaterThan(before);

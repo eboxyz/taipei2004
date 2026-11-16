@@ -7,6 +7,7 @@ import { payBinderPages } from './binder';
 import { CHARACTERS } from './content/characters';
 import { ZODIAC_BY_ID, ZODIAC_WEIGHT } from './content/zodiac';
 import { MAX_STARS } from './constants';
+import { perk } from './perks';
 import type { CharState, Currencies, DrawKind, FactionId, GameState, Rarity, Role } from './types';
 
 export type Rng = () => number;
@@ -80,11 +81,20 @@ export function poolFor(kind: DrawKind, rarity: Rarity, now: number): string[] {
 
 const RARITIES: Rarity[] = ['N', 'R', 'SR', 'SSR'];
 
-export function rollRarity(kind: DrawKind, rng: Rng): Rarity {
+/** Odds after your Lucky Hands upgrade (scratch cards only: chance moves from N to SR and SSR). */
+export function oddsFor(state: GameState | null, kind: DrawKind): Record<Rarity, number> {
+  const base = ODDS[kind];
+  const luck = state && kind === 'scratch' ? perk.scratchLuck(state) : 0;
+  if (!luck) return base;
+  return { N: base.N - 0.02 * luck, R: base.R, SR: base.SR + 0.015 * luck, SSR: base.SSR + 0.005 * luck };
+}
+
+export function rollRarity(kind: DrawKind, rng: Rng, state: GameState | null = null): Rarity {
+  const odds = oddsFor(state, kind);
   const r = rng();
   let acc = 0;
   for (const rar of RARITIES) {
-    acc += ODDS[kind][rar];
+    acc += odds[rar];
     if (r < acc) return rar;
   }
   return 'N';
@@ -195,7 +205,7 @@ export function draw(state: GameState, kind: DrawKind, rng: Rng, now: number): {
   let pity = false;
   const d = { ...s.draws, count: { ...s.draws.count, [kind]: s.draws.count[kind] + 1 } };
   if (kind === 'scratch') {
-    rarities = [rollRarity('scratch', rng)];
+    rarities = [rollRarity('scratch', rng, s)];
   } else if (kind === 'temple') {
     let r = rollRarity('temple', rng);
     if ((r === 'N' || r === 'R') && d.templePity + 1 >= TEMPLE_PITY) {

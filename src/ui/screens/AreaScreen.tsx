@@ -4,7 +4,9 @@ import { ALL_LOTS, AREAS, FACTIONS } from '../../game/content/areas';
 import { CATEGORIES } from '../../game/content/categories';
 import { CHARACTERS, MANAGER_PERKS, ROLES } from '../../game/content/characters';
 import { classOf, statsOf } from '../../game/characters';
-import { phaseAt } from '../../game/clock';
+import { gameHour, phaseAt } from '../../game/clock';
+import { perk } from '../../game/perks';
+import { hotCategory } from '../../game/tick';
 import { SHARE_THRESHOLDS } from '../../game/constants';
 import { fightFor } from '../../game/content/fights';
 import {
@@ -99,8 +101,50 @@ function ShareCard({ area, onFight, onToast }: { area: AreaId; onFight: (fightId
           );
         })}
       </div>
-      {prog.boss && <p className="claimed-note">Claimed 🏮 Income ×2 here, and no more shakedowns.</p>}
+      {prog.boss && <p className="claimed-note">Claimed 🏮 Income ×2 here, lots you don't own yet cost 25% less, and no more shakedowns.</p>}
     </section>
+  );
+}
+
+const TWIST: Partial<Record<AreaId, string>> = {
+  ximending: 'Fast money: cheaper lots that pay for themselves sooner.',
+  zhongshan: '🌙 Night town: every business here earns ×2 at night (lots elsewhere get ×1.5).',
+  xinyi: 'The most expensive land in the city, and the last boss.',
+};
+
+function AreaTwist({ area }: { area: AreaId }) {
+  const s = useGame();
+  const now = useNow(1000);
+  const autoOn = s.auto.upgrade.includes(area);
+  const hot = area === 'east' ? CATEGORIES[s.hot ?? hotCategory(now)] : null;
+  const minsLeft = Math.ceil(24 - gameHour(now));
+  return (
+    <>
+      {hot ? (
+        <p className="twist hot">
+          🔥 Hot right now: <b>{hot.name}s</b> earn ×2. The trend changes in {minsLeft} min.
+        </p>
+      ) : (
+        TWIST[area] && <p className="twist">{TWIST[area]}</p>
+      )}
+      {perk.autoUpgrade(s) && (
+        <label className="switch-row auto-row">
+          <span>
+            <b>Standing Orders 自動加碼</b> keep buying the cheapest upgrade here
+          </span>
+          <input
+            type="checkbox"
+            checked={autoOn}
+            onChange={() =>
+              update((st) => ({
+                ...st,
+                auto: { ...st.auto, upgrade: autoOn ? st.auto.upgrade.filter((a) => a !== area) : [...st.auto.upgrade, area] },
+              }))
+            }
+          />
+        </label>
+      )}
+    </>
   );
 }
 
@@ -373,6 +417,7 @@ export function AreaScreen({ area, onBack, onToast }: { area: AreaId; onBack: ()
       <div className="area-body">
         <p className="flavor">{def.flavor}</p>
         <ShareCard area={area} onFight={setFight} onToast={(m) => onToast(m)} />
+        <AreaTwist area={area} />
         <div className="buy-toggle">
           <span className="label">Upgrade</span>
           <div className="seg" role="group" aria-label="Upgrade amount">

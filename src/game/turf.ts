@@ -7,18 +7,21 @@ import { FIGHTS, type EnemyDef, type FightDef } from './content/fights';
 import { skillOf } from './content/skills';
 import {
   BOSS_SLOT,
+  CLAIM_INDEX,
   FACTION_BONUS,
   FIGHT_XP_FIRST_WIN,
   FIGHT_XP_LOSS,
   FIGHT_XP_WIN,
-  HOME_TURF_GRIT,
   LT_SLOT,
   PHASE_BONUS,
   SHARE_BONUS_PER_STEP,
   SHARE_THRESHOLDS,
+  REMATCH_COOLDOWN_MS,
   SQUAD_SIZE,
+  UNDERDOG_MARGIN,
 } from './constants';
 import { marketShare } from './economy';
+import { perk } from './perks';
 import { payBinderPages } from './binder';
 import { addCard } from './gacha';
 import type { FactionId, GameState, Phase, Squad } from './types';
@@ -178,8 +181,11 @@ export function buildYourSide(state: GameState, fight: FightDef, phase: Phase): 
   if (faction > 0) mods.push({ label: `Same faction ×${most}`, value: pct(faction), good: true });
 
   const guards = AREAS[fight.area].lots.filter((l) => state.lots[l.id]?.security).length;
-  const turf = guards * HOME_TURF_GRIT;
+  const turf = guards * perk.homeTurf(state);
   if (turf > 0) mods.push({ label: `Home Turf: ${guards} Security posted`, value: `${pct(turf)} Grit`, good: true });
+
+  const training = perk.training(state);
+  if (training > 0) mods.push({ label: 'Training 練兵 (Face)', value: pct(training), good: true });
 
   const specs: UnitSpec[] = [];
   squad.forEach((id, slot) => {
@@ -189,7 +195,7 @@ export function buildYourSide(state: GameState, fight: FightDef, phase: Phase): 
     const base = statsOf(id, cs);
     const cls = classOf(id);
     const phaseMult = 1 + (phase === 'day' ? (cls === 'agent' ? PHASE_BONUS : 0) : cls === 'gangster' ? nightBonus : 0);
-    const m = phaseMult * (1 + share) * (1 + faction);
+    const m = phaseMult * (1 + share) * (1 + faction) * (1 + training);
     specs.push({
       charId: id,
       slot,
@@ -209,7 +215,7 @@ export function buildYourSide(state: GameState, fight: FightDef, phase: Phase): 
 function enemySpec(fight: FightDef, e: EnemyDef): UnitSpec {
   const def = CHARACTERS[e.id]!;
   const st: Stats = statsOf(e.id, { level: e.level, xp: 0, stars: 1 });
-  const k = e.scale ?? 1;
+  const k = (e.scale ?? 1) * (fight.strength ?? 1);
   return {
     charId: e.id,
     slot: e.slot,
@@ -244,6 +250,7 @@ export function battleInputFor(state: GameState, fightId: string, phase: Phase):
     them: them.specs,
     timeLimit: fight.timeLimit,
     night: phase === 'night',
+    boost: { ultCharge: perk.ultCharge(state), startCharge: perk.warmUp(state) },
     runner: {
       them: fight.runner ? enemySpec(fight, fight.runner) : undefined,
       // Your own Kun-bo calls in agency runners.
@@ -262,6 +269,14 @@ export interface FightResult {
   claimed: boolean;
   slotsUnlocked: number | null;
   starUp: { charId: string; stars: number } | null;
+  /** A rematch won while its rewards were cooling down. */
+  cooling?: boolean;
+  /** First win right at the threshold: +1 Face at cash-out. */
+  underdog: boolean;
+  /** Price index jump from claiming the area. */
+  indexJump: number;
+  /** Claiming Xinyi: 'full' fireworks the first time, 'short' after. */
+  fireworks: 'full' | 'short' | null;
   binderPages: FactionId[];
   incense: number;
   lottery: number;
@@ -275,10 +290,16 @@ export function isFirstWin(state: GameState, fight: FightDef): boolean {
 }
 
 /** Applies a finished fight to the game state. Losing only ever gives XP. */
-export function resolveFight(state: GameState, fightId: string, outcome: 'win' | 'lose'): { state: GameState; result: FightResult } {
+/** Ms until a fight's rematch rewards are ready again (0 when ready). */
+export function rematchCooldown(state: GameState, fightId: string, now: number): number {
+  return Math.max(0, (state.cooldowns[fightId] ?? 0) - now);
+}
+
+export function resolveFight(state: GameState, fightId: string, outcome: 'win' | 'lose', now = 0): { state: GameState; result: FightResult } {
   const fight = FIGHTS[fightId]!;
   const first = outcome === 'win' && isFirstWin(state, fight);
-  const xp = outcome === 'lose' ? FIGHT_XP_LOSS : first ? FIGHT_XP_FIRST_WIN : FIGHT_XP_WIN;
+  const cooling = outcome === 'win' && !first && rematchCooldown(state, fightId, now) > 0;
+  const xp = cooling ? 0 : outcome === 'lose' ? FIGHT_XP_LOSS : first ? FIGHT_XP_FIRST_WIN : FIGHT_XP_WIN;
   const result: FightResult = {
     outcome,
     first,
@@ -287,6 +308,9 @@ export function resolveFight(state: GameState, fightId: string, outcome: 'win' |
     claimed: false,
     slotsUnlocked: null,
     starUp: null,
+    underdog: false,
+    indexJump: 0,
+    fireworks: null,
     binderPages: [],
     incense: 0,
     lottery: 0,
@@ -310,13 +334,38 @@ export function resolveFight(state: GameState, fightId: string, outcome: 'win' |
 
   s = { ...s, stats: { ...s.stats, fightsWon: s.stats.fightsWon + 1 } };
   if (!first) {
+    if (cooling) return { state: s, result: { ...result, cooling: true } };
     result.scratch = 1;
-    return { state: { ...s, currencies: { ...s.currencies, scratch: s.currencies.scratch + 1 } }, result };
+    return {
+      state: {
+        ...s,
+        currencies: { ...s.currencies, scratch: s.currencies.scratch + 1 },
+        cooldowns: { ...s.cooldowns, [fightId]: now + REMATCH_COOLDOWN_MS },
+      },
+      result,
+    };
   }
 
-  result.incense = fight.rewards.incense;
+  result.incense = Math.round(fight.rewards.incense * perk.incenseMult(state));
   result.lottery = fight.rewards.lottery;
   result.claimed = fight.key === 'boss';
+  result.underdog = marketShare(state, fight.area) < SHARE_THRESHOLDS[fight.key] + UNDERDOG_MARGIN;
+  if (result.underdog) s = { ...s, run: { ...s.run, underdog: s.run.underdog + 1 } };
+  if (result.claimed) {
+    result.indexJump = CLAIM_INDEX * perk.indexMult(state);
+    const claimedEver = s.meta.claimedEver.includes(fight.area) ? s.meta.claimedEver : [...s.meta.claimedEver, fight.area];
+    let chapterClears = s.meta.chapterClears;
+    if (fight.area === 'xinyi') {
+      result.fireworks = chapterClears === 0 ? 'full' : 'short';
+      chapterClears += 1;
+    }
+    s = {
+      ...s,
+      index: s.index + result.indexJump,
+      run: { ...s.run, claims: s.run.claims + 1 },
+      meta: { ...s.meta, claimedEver, chapterClears },
+    };
+  }
   result.lotsUnlocked = AREAS[fight.area].lots.filter((l) => l.lock === fight.key).map((l) => l.id);
   // The leader joins your crew; beating them again in a later run counts as a duplicate (+1 star).
   const added = addCard(s, fight.leader);

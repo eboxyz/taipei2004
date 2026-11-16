@@ -90,9 +90,9 @@ The mechanics are inspired by Yakuza 0's real estate minigame. All characters, g
 ### Lots
 - About 10 lots per area, including the Xiaoxiao lot. Each has a business category, a ☀ day or 🌙 night tag, a price and an income rate.
 - Prices and income scale about ×100 per area.
-- **Upgrades:** cost = base × 1.12^level. Income doubles at levels 10, 25, 50 and 100.
+- **Upgrades:** the first upgrade costs the lot's price, and each level after costs ×1.17 more (tuned with `npm run sim`). Income doubles at levels 10, 25, 50 and 100.
 - Lot art changes at levels 25, 50 and 100. For the first pass, the code shows a tier badge on one icon.
-- Buy ×1 / ×10 / Max toggle; press and hold to keep upgrading.
+- Upgrade toggle: ×1 / ×10 / Max / **Next ×2** (every level up to the next income-doubling milestone, or 10 levels once all are reached). The choice is remembered. Press and hold to keep upgrading.
 
 ### Lot categories (draft)
 
@@ -135,7 +135,7 @@ Rivals periodically lean on your lots in their area.
 - **If the lot is unguarded,** nothing happens. It just misses the bonus. There are no penalties.
 
 ### Market share and the price index
-- **Market share** = your lot value ÷ the area's total value.
+- **Market share** = what you've invested ÷ (what you've invested + the rival's stake). The rival's stake is the gang's own base holdings (which include the lieutenant-held lots), plus 1.5× the price of every unlocked lot you don't own yet, including the Xiaoxiao branch. Unlocking a lieutenant's lot never lowers your share.
   - At 25%, 50% and 75% you can fight the first lieutenant, the second lieutenant and the boss.
   - Lieutenants hold some lots locked until you beat them.
 - **Claiming an area:** income in that area doubles, the remaining lots are discounted, and the boss joins your collection.
@@ -167,6 +167,8 @@ Steps 1–2 unlock during a run. Steps 3–5 are permanent Face upgrades.
 - **Length:** about 30–60 seconds for a lieutenant and about 90 for a boss, at 1× or 2× speed.
 - **Losing costs nothing.** The results screen gives a hint about what to try next.
 - **Quick claim:** you can skip a fight when your army is at least 2× the recommended power.
+- **Time limit:** 75 s for a lieutenant and 120 s for a boss. If the rival holds out, it counts as a loss, which still costs nothing.
+- **Recommended power** is tuned per fight with `npm run sim:fights`: it marks roughly where a typical squad starts winning by day. Power is about Muscle ×1.2 + Grit + Business ×0.8 per card, after modifiers.
 
 ### Squad
 - **Army: 5 slots.** Front row 2, back row 3.
@@ -190,8 +192,26 @@ Steps 1–2 unlock during a run. Steps 3–5 are permanent Face upgrades.
   - Commanders stand behind the army and can only be targeted once your front row has fallen. If one is knocked out, its aura is lost.
   - Either class can command.
   - Rival bosses' gimmicks are their auras.
+  - Commanders don't make basic attacks.
+  - **Aura:** Boss-class cards with a signature aura (Procession, Scooter Crew, Last Call, Daddy's Money, Permits, Old Money, Rave, Lucky Streak) use it. Every other commander gives its role's aura (table below).
+  - **Ultimate:** the card's signature skill at double strength, charged over 24 s.
+  - Auto-fill prefers a Boss-class card with a signature aura as commander, and moves an army card up only if a bench card can take its slot.
 - **Home Turf:** +3% Grit to the whole army for each Security posted in that area. This replaced the idea of a reinforcement bench.
-- **Prep screen:** drag cards into slots, or use **Auto-fill best**. It shows your power against the recommended power, plus a hint like "nightfall in 4 min".
+- **Prep screen:** tap a slot to pick a card (drag-and-drop later), or use **Auto-fill best**, which stays on until you place a card by hand. It shows your power against the recommended power, every modifier, and a hint like "nightfall in 4 min".
+- A card can be posted at a lot and fight in the squad at the same time.
+
+#### Role auras (commanders without a signature aura)
+
+| Role | Aura |
+|---|---|
+| 圍事 bouncer | Army +15% health |
+| 打手 enforcer | Army +15% damage |
+| 小弟 runner | Army attacks 15% faster |
+| 軍師 strategist | Skills charge 20% faster |
+| 房仲 broker | Enemy grunts start with 15% less health |
+| 代書 scrivener | Enemies take 10% more damage |
+| 店長 manager | Army heals 1% health per second |
+| 會計 accountant | Army starts shielded (15% of health) |
 
 ### Roles
 
@@ -211,22 +231,24 @@ Steps 1–2 unlock during a run. Steps 3–5 are permanent Face upgrades.
 
 ### What changes the odds
 - **Time of day:** gangsters get +20% at night, agents +20% by day.
-- **Market share:** a small boost for every 5% above the fight's threshold, so idle play can always win eventually.
-- **Underdog bonus:** extra Face for winning right at the threshold.
-- **Same-faction bonus:** for 2 or 3 crew from the same faction.
+- **Market share:** +4% to all stats for every 5% above the fight's threshold, so idle play can always win eventually.
+- **Underdog bonus:** extra Face for winning right at the threshold (arrives with Face in milestone 4).
+- **Same-faction bonus:** +5% for 2 crew from the same faction, +10% for 3 or more (Independents don't count).
 - **Boss gimmicks:**
 
   | Boss | Gimmick | Counter |
   |---|---|---|
-  | Miaokou (Wanhua) | Procession: calls in troupe members every few seconds | Hit-all skills |
+  | Miaokou (Wanhua) | Procession: calls in a troupe runner every 15 s (at most 4 at once) | Hit-all skills |
   | Molong (Ximending) | Scooter crews: very fast, low health | 圍事 plus hit-all skills |
   | Yuejian (Zhongshan) | Charms one of your crew briefly; heals her staff | Burst damage, stuns |
   | Jin Tangchi (East) | Hides behind shielded bodyguards | 代書 defense strip |
   | Tongtian (Xinyi) | Gains a permit buff every 15 s | Fast-kill squads |
 
 ### Rewards
-- **First win:** unlocks lots or claims the area. The lieutenant or boss joins your collection, and you get gacha currency.
-- **Rematches:** available any time, for XP and a little currency.
+- **First win:** unlocks lots or claims the area. The lieutenant or boss joins your collection, and you get gacha currency: 10 incense money for a lieutenant, 20 incense money and 1 lottery ticket for a boss.
+- **Rematches:** available any time. A win pays 1 scratch card.
+- **XP for the whole squad:** 60 for a first win, 30 for any other win, 12 for a loss.
+- **Claiming an area** doubles income on its lots and ends shakedowns there.
 
 ### Presentation
 - **Layout:** portrait, enemies on top, player at the bottom, commanders in a row behind each army.
@@ -256,41 +278,44 @@ The 10 rival lieutenants join as SR and the 5 bosses as SSR, so everyone earns c
 |---|---|---|---|---|---|
 | Scratch card 刮刮樂 | Scratch with a finger | 70% | 27.5% | 2% | 0.5% |
 | Temple 求籤 | Shake the phone (or swipe) until a stick falls | 50% | 38% | 10% | 2% |
-| Lottery 樂透 | Balls tumble; SR or better guaranteed; weekly featured character | — | 60% | 32% | 8% |
+| Lottery 樂透 | Balls tumble; 3 cards per ticket, at least one SR or better; weekly featured character | — | 60% | 32% | 8% |
 
 - **Temple stick grades:** 下籤 = N, 中籤 = R, 上籤 = SR, 上上籤 = SSR.
 - **Moon blocks (擲筊):** after a temple draw, you can throw the blocks.
   - Three 聖筊 in a row (12.5%) upgrades the card one rarity.
   - Any other result keeps the card. A throw can never make it worse.
-- **Guarantees:** every 10th temple draw is SR or better. The lottery guarantees an SSR by the 40th draw.
+- **Costs:** a scratch card costs 1 scratch card, a temple draw 10 incense money (the first visit each day is free), a lottery spin 1 ticket.
+- **Who's inside:** Starter and "All" cards are in every machine; exclusives only in theirs. Earned lieutenants and bosses never come from draws. The lottery's weekly featured card rotates through Jackpot, Lao Zhang, A-Tai, Chen Daishu and A-Xiong and is half of its rarity's chance.
+- **Guarantees:** every 10th temple draw is SR or better. The lottery guarantees an SSR by the 40th ticket.
 - Guarantee counters carry over between runs, and odds are shown in the game.
 
 ### Currencies (never reset)
 
 | Currency | Earned from |
 |---|---|
-| Scratch cards | Street events, repelled shakedowns, rematches |
-| Incense money 香油錢 | First wins over lieutenants and bosses, area claims, one free temple visit a day |
+| Scratch cards | Street events, every 4th repelled shakedown, rematch wins |
+| Incense money 香油錢 | First wins over lieutenants (10) and bosses (20, which also claims the area), duplicates past ★5 (N 1, R 2, SR 5, SSR 10), plus one free temple visit a day |
 | Lottery tickets | First wins over bosses, cashing out, completing binder pages |
 
 No real money anywhere.
 
 ### Growth
-- **Duplicates** add stars, up to ★5.
-  - ★3: the signature skill gets stronger.
-  - ★5: the commander aura gets stronger, and the card gets a special frame overlay.
+- **Duplicates** add stars, up to ★5. Each star adds 10% to stats.
+  - ★3: the signature skill gets 25% stronger.
+  - ★5: the commander aura gets 50% stronger, and the card gets a holographic frame.
+  - Earned lieutenants and bosses get their duplicates by being beaten again in a later run.
 - **Levels** come from working lots and from fights.
 - **Extra duplicates** past ★5 trade in for incense money.
 
 ### Roster variety
 - **Draw-exclusive characters:** some only come from scratch cards, some only from the temple, some only from the lottery.
-- **Zodiac (生肖):** chosen at the start. It slightly tilts the odds toward certain factions and roles, and the game explains it in English. The zodiac-to-faction mapping is still to be decided.
+- **Zodiac (生肖):** picked before your first draw and changeable any time. Each sign makes two roles 1.5× as likely within each rarity; rarity odds never change. Each role is favoured by three signs: Rat 會計 小弟 · Ox 圍事 打手 · Tiger 打手 小弟 · Rabbit 店長 會計 · Dragon 軍師 打手 · Snake 代書 軍師 · Horse 小弟 房仲 · Goat 店長 圍事 · Monkey 房仲 軍師 · Rooster 代書 會計 · Dog 圍事 店長 · Pig 房仲 代書. (Roles only for now: the draw pools are too small for faction tilts to matter.)
 - **Commander auras** lead to different army builds.
 
 ### Binder (名片簿)
 - Pages are grouped by faction. Empty slots show a silhouette and a hint about where to find that character.
-- Each completed page gives a permanent bonus.
-- Every 10 unique cards adds global income.
+- Each completed page gives a permanent bonus and 1 lottery ticket: Hao Linju Realty, lots cost 5% less; each gang page, +10% income in that gang's area; Independents, the safe holds 2 more hours.
+- Every 10 unique cards adds 5% global income.
 
 ---
 
@@ -338,7 +363,8 @@ Four branches, about 30 upgrades in total for Chapter 1, with costs that rise as
 Turf Wars launch from an area screen.
 
 ### Screens
-- **Map:** the metro map with a status bar (cash, income per second, clock with ☀/🌙), the safe button above the tabs, red dots for anything worth tapping, and street-event icons.
+- **Map:** the metro map with a status bar (cash, income per second, clock with ☀/🌙), red dots for anything worth tapping, and street-event icons.
+- **The safe** is a raised button in the middle of the tab bar, so it never covers the lot buttons.
 - **Area screen:** an illustrated banner (day/night), a market share bar with fight buttons at 25/50/75%, the buy-amount toggle, and a list of lot cards (icon, name, ☀/🌙, level, income, (M)(S) staff slots, upgrade button). Tapping a lot opens a bottom sheet for staffing and details.
 - **Turf War:** prep → battle → results.
 - **Draws:** each tier has its own full-screen interaction.
@@ -399,6 +425,7 @@ Turf Wars launch from an area screen.
 - **Accounts and database** arrive at milestone 5. The provider and auth library are chosen then, from free tiers.
 - **Code:** private GitHub repo `taipei2004`.
 - **Sound:** none for now; revisit later.
+- **Dev tools (dev builds only):** a DEV speed pill in the top bar cycles game speed 1× / 2× / 4× / 10× (it also speeds up fights), and the console has `taipei2004.skip(seconds)`, `state()` and `set(state)`.
 
 ### Build order
 
@@ -421,7 +448,6 @@ Turf Wars launch from an area screen.
 
 ## Open items
 - Xiaoxiao Realty characters: secret boss and 2 lieutenants
-- Zodiac → faction/role mapping
 - Full lot lists per area, plus balancing numbers
 - Notoriety levels (after a playtest)
 - Sound (later)

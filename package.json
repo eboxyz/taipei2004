@@ -1,0 +1,32 @@
+{
+  "name": "taipei2004",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:phone": "vite --host",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "sim": "tsx scripts/simulate.ts",
+    "art": "node scripts/process-art.mjs",
+    "sim:fights": "tsx scripts/battle-sim.ts"
+  },
+  "dependencies": {
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24.19.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "sharp": "^0.34.5",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9",
+    "vite": "^7.3.8",
+    "vitest": "^3.2.7"
+  }
+}

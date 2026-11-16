@@ -1,0 +1,66 @@
+import { AREA_ORDER } from './content/areas';
+import { STARTERS } from './content/characters';
+import { SQUAD_SIZE } from './constants';
+import { SAVE_VERSION, START_CASH, START_SAFE_HOURS } from './constants';
+import type { AreaId, AreaProgress, GameState } from './types';
+
+export function initialState(now: number): GameState {
+  return {
+    version: SAVE_VERSION,
+    createdAt: now,
+    lastSeen: now,
+    cash: START_CASH,
+    safe: 0,
+    lifetimeEarned: 0,
+    runEarned: 0,
+    bestNetWorth: START_CASH,
+    index: 100,
+    lots: {},
+    characters: Object.fromEntries(STARTERS.map((id) => [id, { level: 1, xp: 0, stars: 1 }])),
+    areas: Object.fromEntries(AREA_ORDER.map((a) => [a, { lt1: false, lt2: false, boss: false }])) as Record<
+      AreaId,
+      AreaProgress
+    >,
+    // Hai-shu and A-Di up front, A-Cai behind them.
+    squad: ['hai_shu', 'a_di', 'a_cai', ...Array<null>(SQUAD_SIZE - 3).fill(null)],
+    squadAuto: true,
+    currencies: { scratch: 0, incense: 0, lottery: 0 },
+    zodiac: null,
+    draws: { templePity: 0, lotteryPity: 0, lastFreeTemple: null, count: { scratch: 0, temple: 0, lottery: 0 } },
+    binderPaid: [],
+    run: { accountant: false },
+    meta: { safeHours: START_SAFE_HOURS, face: 0, squadSlots: 3 },
+    settings: { numberFormat: 'cjk', buyMode: 1, battleSpeed: 1, battleAuto: true },
+    stats: { shakedownsRepelled: 0, shakedownBonus: 0, lotsBought: 0, fightsWon: 0, fightsLost: 0 },
+    shakedownIn: 120,
+  };
+}
+
+/**
+ * Upgrades an older save to the current shape. Each version bump adds a step here.
+ * Unknown or broken input returns null so the caller can start fresh.
+ */
+export function migrate(raw: unknown, now: number): GameState | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const s = raw as Partial<GameState>;
+  if (typeof s.version !== 'number' || s.version > SAVE_VERSION) return null;
+  // v2 added the squad, currencies and fight stats; v3 added zodiac, draws and the binder.
+  // Filling missing fields from a fresh state covers every step so far, and partial saves still load.
+  const base = initialState(now);
+  return {
+    ...base,
+    ...s,
+    run: { ...base.run, ...s.run },
+    meta: { ...base.meta, ...s.meta },
+    settings: { ...base.settings, ...s.settings },
+    stats: { ...base.stats, ...s.stats },
+    areas: { ...base.areas, ...s.areas },
+    characters: { ...base.characters, ...s.characters },
+    currencies: { ...base.currencies, ...s.currencies },
+    draws: { ...base.draws, ...s.draws, count: { ...base.draws.count, ...s.draws?.count } },
+    binderPaid: Array.isArray(s.binderPaid) ? s.binderPaid : [],
+    squad: Array.isArray(s.squad) && s.squad.length === base.squad.length ? s.squad : base.squad,
+    lots: { ...s.lots },
+    version: SAVE_VERSION,
+  };
+}

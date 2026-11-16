@@ -1,0 +1,171 @@
+import { AREAS, AREA_ORDER, ALL_LOTS } from './content/areas';
+import { CATEGORIES } from './content/categories';
+import { CHARACTERS } from './content/characters';
+import { binderIncomeMult, binderLotDiscount, binderSafeHours } from './binder';
+import { statsOf } from './characters';
+import {
+  AVERAGE_PHASE_MULT,
+  IN_PHASE_MULT,
+  MAX_SAFE_HOURS,
+  MILESTONES,
+  RIVAL_STAKE,
+  UPGRADE_BASE,
+  UPGRADE_GROWTH,
+} from './constants';
+import type { AreaId, BuyMode, GameState, IncomeMode, LotDef } from './types';
+
+export function milestoneMult(level: number): number {
+  let m = 1;
+  for (const t of MILESTONES) if (level >= t) m *= 2;
+  return m;
+}
+
+export function nextMilestone(level: number): number | null {
+  return MILESTONES.find((t) => t > level) ?? null;
+}
+
+export function milestonesCrossed(from: number, to: number): number[] {
+  return MILESTONES.filter((t) => t > from && t <= to);
+}
+
+function roleOf(charId: string | undefined) {
+  return charId ? CHARACTERS[charId]?.role ?? null : null;
+}
+
+/** Multiplier from the lot's Manager (Business stat, plus 店長 bonus). */
+export function managerMult(state: GameState, lotId: string): number {
+  const mgr = state.lots[lotId]?.manager;
+  if (!mgr) return 1;
+  const { business } = statsOf(mgr, state.characters[mgr]);
+  let m = 1 + business / 100;
+  if (roleOf(mgr) === 'dianzhang') m *= 1.25;
+  return m;
+}
+
+export function phaseMult(lot: LotDef, mode: IncomeMode): number {
+  if (mode === 'average') return AVERAGE_PHASE_MULT;
+  return CATEGORIES[lot.category]?.tag === mode ? IN_PHASE_MULT : 1;
+}
+
+export function lotIncome(state: GameState, lot: LotDef, mode: IncomeMode): number {
+  const ls = state.lots[lot.id];
+  if (!ls) return 0;
+  const claim = state.areas[lot.area]?.boss ? 2 : 1;
+  return (
+    lot.income *
+    ls.level *
+    milestoneMult(ls.level) *
+    phaseMult(lot, mode) *
+    managerMult(state, lot.id) *
+    claim *
+    binderIncomeMult(state, lot.area) *
+    (state.index / 100)
+  );
+}
+
+export function incomePerSec(state: GameState, mode: IncomeMode): number {
+  let total = 0;
+  for (const id of Object.keys(state.lots)) {
+    const lot = ALL_LOTS[id];
+    if (lot) total += lotIncome(state, lot, mode);
+  }
+  return total;
+}
+
+export function areaIncome(state: GameState, area: AreaId, mode: IncomeMode): number {
+  return AREAS[area].lots.reduce((sum, lot) => sum + lotIncome(state, lot, mode), 0);
+}
+
+export function safeHours(state: GameState): number {
+  const accountants = Object.values(state.lots).filter((ls) => roleOf(ls.manager) === 'kuaiji').length;
+  return Math.min(MAX_SAFE_HOURS, state.meta.safeHours + accountants + binderSafeHours(state));
+}
+
+/** Safe capacity in NT$: N hours of average income. */
+export function safeCapacity(state: GameState): number {
+  return incomePerSec(state, 'average') * safeHours(state) * 3600;
+}
+
+export function brokerDiscount(state: GameState, area: AreaId): number {
+  const brokers = AREAS[area].lots.filter((l) => roleOf(state.lots[l.id]?.manager) === 'fangzhong').length;
+  return Math.min(0.25, brokers * 0.05);
+}
+
+export function buyPrice(state: GameState, lot: LotDef): number {
+  return Math.ceil(lot.price * (1 - brokerDiscount(state, lot.area)) * (1 - binderLotDiscount(state)));
+}
+
+/** Cost to go from `level` to `level + 1`. */
+export function upgradeCost(state: GameState, lot: LotDef, level: number): number {
+  const scrivener = roleOf(state.lots[lot.id]?.manager) === 'daishu' ? 0.9 : 1;
+  return Math.ceil(lot.price * UPGRADE_BASE * Math.pow(UPGRADE_GROWTH, level - 1) * scrivener);
+}
+
+/** Total cost of `n` upgrades starting from `level`. */
+export function upgradeCostN(state: GameState, lot: LotDef, level: number, n: number): number {
+  if (n <= 0) return 0;
+  const c0 = upgradeCost(state, lot, level);
+  return Math.ceil((c0 * (Math.pow(UPGRADE_GROWTH, n) - 1)) / (UPGRADE_GROWTH - 1));
+}
+
+/** Most upgrades affordable with `cash`, starting from `level`. */
+export function maxAffordableUpgrades(state: GameState, lot: LotDef, level: number, cash: number): number {
+  const c0 = upgradeCost(state, lot, level);
+  if (cash < c0) return 0;
+  let n = Math.floor(Math.log((cash * (UPGRADE_GROWTH - 1)) / c0 + 1) / Math.log(UPGRADE_GROWTH));
+  while (n > 0 && upgradeCostN(state, lot, level, n) > cash) n -= 1;
+  return n;
+}
+
+/**
+ * How many upgrades a buy mode means for a lot at `level`. 'next' goes to the next ×2
+ * milestone (10 levels at a time once every milestone is reached). 0 means 'max' can't afford one.
+ */
+export function upgradeCountFor(state: GameState, lot: LotDef, level: number, mode: BuyMode): number {
+  if (mode === 'max') return maxAffordableUpgrades(state, lot, level, state.cash);
+  if (mode === 'next') {
+    const m = nextMilestone(level);
+    return m ? m - level : 10;
+  }
+  return mode;
+}
+
+export function isAreaOpen(state: GameState, area: AreaId): boolean {
+  const i = AREA_ORDER.indexOf(area);
+  if (i <= 0) return true;
+  if (AREAS[area].secret) return false;
+  const prev = AREA_ORDER[i - 1];
+  return prev ? state.areas[prev].boss : false;
+}
+
+export function isLotLocked(state: GameState, lot: LotDef): boolean {
+  if (!lot.lock) return false;
+  if (lot.lock === 'xiaoxiao') return true;
+  return !state.areas[lot.area][lot.lock];
+}
+
+export function marketShare(state: GameState, area: AreaId): number {
+  let yours = 0;
+  let rival = AREAS[area].rivalBase;
+  for (const lot of AREAS[area].lots) {
+    const ls = state.lots[lot.id];
+    if (ls) yours += ls.invested;
+    // Lieutenant-held lots are part of the gang's base stake, so unlocking them never drops your share.
+    else if (lot.lock !== 'lt1' && lot.lock !== 'lt2') rival += lot.price * RIVAL_STAKE;
+  }
+  return yours + rival === 0 ? 0 : yours / (yours + rival);
+}
+
+export function netWorth(state: GameState): number {
+  const property = Object.values(state.lots).reduce((s, ls) => s + ls.invested, 0);
+  return state.cash + state.safe + property * (state.index / 100);
+}
+
+/** Where a character is currently posted, if anywhere. */
+export function postOf(state: GameState, charId: string): { lotId: string; slot: 'manager' | 'security' } | null {
+  for (const [lotId, ls] of Object.entries(state.lots)) {
+    if (ls.manager === charId) return { lotId, slot: 'manager' };
+    if (ls.security === charId) return { lotId, slot: 'security' };
+  }
+  return null;
+}

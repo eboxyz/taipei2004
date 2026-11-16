@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { track } from '../analytics';
 import { AREAS } from '../../game/content/areas';
 import { BRANCHES, FACE_UPGRADES, type Branch } from '../../game/content/face';
-import { buyFaceUpgrade, canCashOut, cashOut, cashOutPreview, faceCost } from '../../game/face';
+import { buyFaceUpgrade, canCashOut, cashOut, cashOutPreview, faceCost, firstWins } from '../../game/face';
 import { formatMoney, formatNumber } from '../../game/format';
 import { faceLevel, perk } from '../../game/perks';
 import { Money } from '../components/bits';
 import { CashOutCeremony } from '../components/Ceremony';
+import { HeadlinePicker } from '../components/RunNews';
 import { act, replaceState, update } from '../engine';
 import { store, useGame } from '../store';
 import { gameNow } from '../time';
@@ -49,6 +50,12 @@ export function CashOutPanel() {
             <b>+{p.fromUnderdog}</b>
           </li>
         )}
+        {p.fromRearmed > 0 && (
+          <li>
+            <span>Rearmed Rivals: first wins ({firstWins(s)})</span>
+            <b>+{p.fromRearmed}</b>
+          </li>
+        )}
       </ul>
       <p className="face-next">
         Next Face at a net worth of <Money value={p.nextWorth} />.
@@ -84,7 +91,8 @@ export function CashOutPanel() {
           Cash out now: +{p.face} Face
         </button>
       )}
-      {ceremony !== null && <CashOutCeremony face={ceremony} onClose={() => setCeremony(null)} />}
+      {/* After the ceremony, the new run's three front pages (they wait here until one is picked). */}
+      {ceremony !== null ? <CashOutCeremony face={ceremony} onClose={() => setCeremony(null)} /> : <HeadlinePicker />}
     </section>
   );
 }

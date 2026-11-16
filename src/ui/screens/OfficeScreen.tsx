@@ -19,6 +19,8 @@ import { EVENT_LIFETIME_S } from '../../game/constants';
 import type { EventKind } from '../../game/types';
 import { AutomationPanel, CashOutPanel, FaceTree } from './FacePanel';
 import { CashOutCeremony, Fireworks } from '../components/Ceremony';
+import { IncomePanel } from '../components/Income';
+import { ThisYearPanel } from '../components/RunNews';
 
 /**
  * Dev only: ten real temple draws (same odds, pity and binder rewards) that don't spend
@@ -137,6 +139,8 @@ export function OfficeScreen({ onToast }: { onToast: (text: string, tone?: 'good
         </div>
       </section>
 
+      <ThisYearPanel />
+      <IncomePanel />
       <CashOutPanel />
       <FaceTree onToast={onToast} />
       <AutomationPanel />

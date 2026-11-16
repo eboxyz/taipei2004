@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { ALL_LOTS, AREAS, FACTIONS } from '../../game/content/areas';
 import { phaseAt } from '../../game/clock';
-import { buyPrice, isAreaOpen, isLotLocked, lotOwnership } from '../../game/economy';
+import { isAreaOpen, isLotLocked, lotOwnership } from '../../game/economy';
+import { bestBuy, mostlyIndex, openLots } from '../../game/income';
+import { HEADLINES } from '../../game/content/headlines';
+import { headlineRule } from '../../game/headlines';
 import { formatPercent } from '../../game/format';
 import type { AreaId, GameState } from '../../game/types';
 import { store, useGame, useNow } from '../store';
@@ -18,8 +21,8 @@ import { classOf } from '../../game/characters';
 import { postOf } from '../../game/economy';
 import { track } from '../analytics';
 import { artUrl } from '../art';
-import { LOTTERY_BALLS, COST, canDraw } from '../../game/gacha';
-import { REMATCH_COOLDOWN_MS, SHAKEDOWN_SCRATCH_EVERY, SHARE_THRESHOLDS } from '../../game/constants';
+import { LOTTERY_BALLS, COST, canDraw, fortuneToday, STICK_GRADE } from '../../game/gacha';
+import { FORTUNE_EVENT_RATE, REMATCH_COOLDOWN_MS, SHAKEDOWN_SCRATCH_EVERY, SHARE_THRESHOLDS } from '../../game/constants';
 
 interface Node {
   id: AreaId;
@@ -135,8 +138,11 @@ interface Goal {
  * The one most useful thing to do next, or null when there's nothing worth suggesting
  * (for example, every open area is claimed and every lot is bought).
  */
-function nextGoal(s: GameState, nav: { onOpenArea: (id: AreaId) => void; onOpenCrew: () => void }): Goal | null {
+function nextGoal(s: GameState, nav: { onOpenArea: (id: AreaId) => void; onOpenCrew: () => void; onOpenOffice: () => void }): Goal | null {
   const fmt = (n: number) => formatMoney(n, s.settings.numberFormat);
+  if (s.run.offers.length > 0)
+    return { key: `headline:${s.meta.runs}`, text: "Three front pages are waiting. Pick this year's headline in Office.", action: 'Office', go: nav.onOpenOffice };
+
   const ready = Object.values(FIGHTS).find((f) => isFirstWin(s, f) && canChallenge(s, f));
   if (ready)
     return {
@@ -146,11 +152,17 @@ function nextGoal(s: GameState, nav: { onOpenArea: (id: AreaId) => void; onOpenC
       go: () => nav.onOpenArea(ready.area),
     };
 
-  const lot = Object.values(ALL_LOTS)
-    .filter((l) => !s.lots[l.id] && isAreaOpen(s, l.area) && !isLotLocked(s, l))
-    .sort((a, b) => buyPrice(s, a) - buyPrice(s, b))[0];
-  if (lot && s.cash >= buyPrice(s, lot))
-    return { key: `buy:${lot.id}`, text: `You can afford ${lot.name} in ${AREAS[lot.area].name}.`, action: 'Buy it', go: () => nav.onOpenArea(lot.area) };
+  // The purchase anywhere on the map that adds the most income per NT$.
+  const best = bestBuy(s, openLots(s));
+  const bestLot = best ? ALL_LOTS[best.lotId] : undefined;
+  const what = best && bestLot ? `${bestLot.name} in ${AREAS[bestLot.area].name}${best.kind === 'upgrade' ? ` to Lv ${best.toLevel}` : ''}` : '';
+  if (best && bestLot && s.cash >= best.cost)
+    return {
+      key: `best:${best.lotId}`,
+      text: `Best buy: ${what}. Adds ${fmt(best.gain)}/s for ${fmt(best.cost)}${mostlyIndex(best) ? ', mostly through the price index' : ''}.`,
+      action: 'View',
+      go: () => nav.onOpenArea(bestLot.area),
+    };
 
   const freeAgent = Object.keys(s.characters).some((id) => classOf(id) === 'agent' && !postOf(s, id));
   if (freeAgent && Object.values(s.lots).some((ls) => !ls.manager))
@@ -159,22 +171,23 @@ function nextGoal(s: GameState, nav: { onOpenArea: (id: AreaId) => void; onOpenC
   if (s.safe > 0 && !s.run.accountant)
     return { key: 'safe', text: 'Income is waiting in your safe. Collect it to spend on properties.', action: 'Collect', go: () => void act(collectSafe) };
 
-  if (lot)
-    return {
-      key: `save:${lot.id}`,
-      text: `Next property: ${lot.name}. Save ${fmt(Math.max(0, buyPrice(s, lot) - s.cash))} more.`,
-      action: 'View',
-      go: () => nav.onOpenArea(lot.area),
-    };
-
-  // Everything here is bought: name the next rival and the share it takes.
+  // Everything open is bought: name the next rival and the share it takes.
+  const allBought = !Object.values(ALL_LOTS).some((l) => !s.lots[l.id] && isAreaOpen(s, l.area) && !isLotLocked(s, l));
   const next = Object.values(FIGHTS).find((f) => isAreaOpen(s, f.area) && isFirstWin(s, f));
-  if (next)
+  if (allBought && next)
     return {
       key: `share:${next.id}`,
       text: `Upgrade lots in ${AREAS[next.area].name} to ${Math.round(SHARE_THRESHOLDS[next.key] * 100)}% market share to challenge ${CHARACTERS[next.leader]?.name}.`,
       action: 'View',
       go: () => nav.onOpenArea(next.area),
+    };
+
+  if (best && bestLot)
+    return {
+      key: `save:${best.lotId}`,
+      text: `Next best buy: ${what}. Save ${fmt(Math.max(0, best.cost - s.cash))} more.`,
+      action: 'View',
+      go: () => nav.onOpenArea(bestLot.area),
     };
   return null;
 }
@@ -197,7 +210,19 @@ function eventText(r: EventReward, fmt: 'cjk' | 'kmb'): string {
   }
 }
 
-export function MapScreen({ onOpenArea, onOpenDraws, onOpenCrew, onLocked }: { onOpenArea: (id: AreaId) => void; onOpenDraws: () => void; onOpenCrew: () => void; onLocked: (msg: string) => void }) {
+export function MapScreen({
+  onOpenArea,
+  onOpenDraws,
+  onOpenCrew,
+  onOpenOffice,
+  onLocked,
+}: {
+  onOpenArea: (id: AreaId) => void;
+  onOpenDraws: () => void;
+  onOpenCrew: () => void;
+  onOpenOffice: () => void;
+  onLocked: (msg: string) => void;
+}) {
   const s = useGame();
   const now = useNow(5000);
   const phase = phaseAt(now);
@@ -231,9 +256,12 @@ export function MapScreen({ onOpenArea, onOpenDraws, onOpenCrew, onLocked }: { o
     }
   };
   const rematch = Object.values(FIGHTS).find((f) => !isFirstWin(s, f) && rematchCooldown(s, f.id, now) === 0);
-  const goal = nextGoal(s, { onOpenArea, onOpenCrew });
+  const goal = nextGoal(s, { onOpenArea, onOpenCrew, onOpenOffice });
+  const headline = s.run.headline;
+  const fortune = fortuneToday(s, now);
 
   const ticker = [
+    ...(headline ? [`★ 今年頭條 ${HEADLINES[headline.id].nameZh} ${HEADLINES[headline.id].name.toUpperCase()}: ${headlineRule(headline).toUpperCase()}`] : []),
     `★ 房價指數 HOUSING INDEX ${s.index.toFixed(1)} ▲`,
     `★ XIAOXIAO REALTY OPENS ITS 100TH BRANCH: "WE'RE ALWAYS SMILING!" 笑笑房屋`,
     `★ TAIPEI 101: ${floors} FLOORS AND RISING`,
@@ -291,6 +319,11 @@ export function MapScreen({ onOpenArea, onOpenDraws, onOpenCrew, onLocked }: { o
             房價指數 <b>{s.index.toFixed(1)}</b>
           </span>
         </div>
+        {fortune && (
+          <p className="fortune-chip">
+            <b className="zh">{STICK_GRADE[fortune]}</b> Today's luck: street events ×{FORTUNE_EVENT_RATE[fortune]}
+          </p>
+        )}
         <div className="metro" data-phase={phase}>
           <svg viewBox="0 0 400 470" role="img" aria-label="Taipei metro map">
             {/* Rivers */}
@@ -454,7 +487,7 @@ export function MapScreen({ onOpenArea, onOpenDraws, onOpenCrew, onLocked }: { o
           </summary>
           <div className="resource-guide-body">
             <p className="resource-guide-daily">
-              <strong>One free Temple draw every day.</strong>{' '}
+              <strong>One free Temple draw every day.</strong> Its stick also sets the day's luck for street events.{' '}
               {!s.zodiac ? 'Choose your zodiac in Draws to get started.'
                 : canDraw(s, 'temple', now).free ? 'Your free visit is ready in Draws.'
                   : 'You’ve used today’s free visit. More draws cost incense money.'}

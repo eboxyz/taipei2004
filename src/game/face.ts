@@ -3,9 +3,12 @@
 const FIRST_GOOD_FACE = 10;
 import { AREAS } from './content/areas';
 import { FACE_BY_ID } from './content/face';
-import { FACE_DIVISOR, FACE_PER_CLAIM, FACE_PER_UNDERDOG, INDEX_PER_LOT, INDEX_PER_MILESTONE, START_CASH } from './constants';
+import { drawCommissions } from './commissions';
+import { FACE_DIVISOR, FACE_PER_CLAIM, FACE_PER_UNDERDOG, INDEX_PER_LOT, INDEX_PER_MILESTONE, REARMED_FACE_PER_WIN, START_CASH } from './constants';
 import { milestonesCrossed, upgradeCostN } from './economy';
+import { drawOffers, headlineIs } from './headlines';
 import { faceLevel, perk } from './perks';
+import type { Rng } from './rng';
 import { initialState } from './state';
 import type { ActionResult } from './actions';
 import type { GameState } from './types';
@@ -37,6 +40,8 @@ export interface CashOutPreview {
   fromWorth: number;
   fromClaims: number;
   fromUnderdog: number;
+  /** Rearmed Rivals: Face for each first win this run. */
+  fromRearmed: number;
   /** Best net worth needed for one more Face from worth. */
   nextWorth: number;
   /** True when this cash-out would raise your lifetime Face by 50% or more. */
@@ -47,16 +52,23 @@ export function cashOutPreview(state: GameState): CashOutPreview {
   const fromWorth = Math.floor(Math.sqrt(Math.max(0, state.bestNetWorth) / FACE_DIVISOR));
   const fromClaims = state.run.claims * FACE_PER_CLAIM;
   const fromUnderdog = state.run.underdog * FACE_PER_UNDERDOG;
-  const face = fromWorth + fromClaims + fromUnderdog;
+  const fromRearmed = headlineIs(state, 'rearmed') ? firstWins(state) * REARMED_FACE_PER_WIN : 0;
+  const face = fromWorth + fromClaims + fromUnderdog + fromRearmed;
   return {
     face,
     fromWorth,
     fromClaims,
     fromUnderdog,
+    fromRearmed,
     nextWorth: Math.pow(fromWorth + 1, 2) * FACE_DIVISOR,
     // A first cash-out only glows once it's worth it (about a Ximending claim).
     goodTime: face >= Math.max(FIRST_GOOD_FACE, state.meta.faceTotal * 0.5),
   };
+}
+
+/** Lieutenants and bosses beaten this run (area progress resets each run). */
+export function firstWins(state: GameState): number {
+  return Object.values(state.areas).reduce((n, p) => n + [p.lt1, p.lt2, p.boss].filter(Boolean).length, 0);
 }
 
 /** Sets up the start of a run from your Face upgrades. */
@@ -80,8 +92,9 @@ export function startRun(state: GameState): GameState {
 /**
  * Wash your hands in the golden basin: bank Face and a lottery ticket, then start over.
  * Cards, stars, levels, binder, currencies, guarantees, Face, slots and automation all stay.
+ * The new run gets three front pages to pick this year's headline from, and three commissions.
  */
-export function cashOut(state: GameState, now: number): { state: GameState; face: number } {
+export function cashOut(state: GameState, now: number, rng: Rng = Math.random): { state: GameState; face: number } {
   const { face } = cashOutPreview(state);
   const fresh = initialState(now);
   let s: GameState = {
@@ -103,5 +116,7 @@ export function cashOut(state: GameState, now: number): { state: GameState; face
     meta: { ...state.meta, face: state.meta.face + face, faceTotal: state.meta.faceTotal + face, runs: state.meta.runs + 1 },
   };
   s = startRun(s);
+  s = { ...s, run: { ...s.run, startedAt: now, offers: drawOffers(rng) } };
+  s = { ...s, run: { ...s.run, commissions: drawCommissions(s, rng, now) } };
   return { state: s, face };
 }

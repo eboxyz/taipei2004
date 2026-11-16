@@ -140,6 +140,8 @@ export interface DrawState {
   lotteryPity: number;
   /** Local date (YYYY-MM-DD) of the last free temple visit. */
   lastFreeTemple: string | null;
+  /** Today's fortune: the free visit's stick (as card rarity) speeds up street events for that day. */
+  fortune: { day: string; rarity: Rarity } | null;
   count: Record<DrawKind, number>;
 }
 
@@ -163,6 +165,25 @@ export interface StreetEvent {
   xiaoxiao: boolean;
   /** Seconds before it moves on. */
   expiresIn: number;
+}
+
+/** This year's headline: one run-long twist, picked from three front pages at cash-out. */
+export type HeadlineId = 'typhoon' | 'night_market' | 'election' | 'mrt' | 'festival' | 'idol' | 'stock_rally' | 'rearmed';
+
+export interface Headline {
+  id: HeadlineId;
+  /** New MRT Line only: the district whose lots are cheaper. */
+  area?: AreaId;
+}
+
+/** Optional goals for one run, each paying a lottery ticket. */
+export type CommissionId = 'agents_only' | 'fast_ximending' | 'lv100' | 'repel10' | 'underdog' | 'full_district' | 'index130' | 'street5' | 'managers6';
+
+export interface Commission {
+  id: CommissionId;
+  /** A counter's value when the run started, for goals counted "this run". */
+  from: number;
+  done: boolean;
 }
 
 export interface GameState {
@@ -196,6 +217,17 @@ export interface GameState {
     claims: number;
     /** First wins taken right at the share threshold this run (extra Face). */
     underdog: number;
+    /** Game time (ms) this run started, for timed commissions. */
+    startedAt: number;
+    /** This run's headline. Run 1 has none, and it's null until one is picked. */
+    headline: Headline | null;
+    /** Three front pages waiting for a pick (after a cash-out). */
+    offers: Headline[];
+    commissions: Commission[];
+    /** Street events taken this run. */
+    events: number;
+    /** Won a Turf War with only agents this run. */
+    agentWin: boolean;
   };
   meta: {
     /** Legacy; the safe size now comes from Face upgrades. */
@@ -251,3 +283,4 @@ export type GameEvent =
   | { kind: 'level-up'; charId: string; level: number }
   | { kind: 'milestone'; lotId: string; level: number }
   | { kind: 'auto-bought'; lotId: string }
+  | { kind: 'commission'; id: CommissionId }

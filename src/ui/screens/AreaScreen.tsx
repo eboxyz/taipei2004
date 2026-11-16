@@ -8,10 +8,13 @@ import { classOf, statsOf } from '../../game/characters';
 import { gameHour, phaseAt } from '../../game/clock';
 import { perk } from '../../game/perks';
 import { hotCategory } from '../../game/tick';
-import { SHARE_THRESHOLDS } from '../../game/constants';
+import { LOCAL_GUARD_WEIGHT, LOCAL_MANAGER_MULT, SHARE_THRESHOLDS } from '../../game/constants';
 import { fightFor } from '../../game/content/fights';
 import {
   buyPrice,
+  incomeBreakdown,
+  incomeOf,
+  isLocal,
   isLotLocked,
   lotIncome,
   marketShare,
@@ -22,6 +25,8 @@ import {
   upgradeCountFor,
 } from '../../game/economy';
 import { formatMoney, formatPercent } from '../../game/format';
+import { bestBuy, mostlyIndex, type Buy } from '../../game/income';
+import { IncomeSources } from '../components/Income';
 import { lotsLeftToBuy, slotAdvice } from '../../game/staffing';
 import type { AreaId, BuyMode, FightKey, GameState, LotDef, Phase } from '../../game/types';
 import { artUrl } from '../art';
@@ -146,7 +151,7 @@ function AreaTwist({ area }: { area: AreaId }) {
       {perk.autoUpgrade(s) && (
         <label className="switch-row auto-row">
           <span>
-            <b>Standing Orders 自動加碼</b> keep buying the cheapest upgrade here
+            <b>Standing Orders 自動加碼</b> keep taking the best-value upgrade here
           </span>
           <input
             type="checkbox"
@@ -164,7 +169,21 @@ function AreaTwist({ area }: { area: AreaId }) {
   );
 }
 
-function LotCard({ lot, mode, phase, onOpen, onMilestone }: { lot: LotDef; mode: BuyMode; phase: Phase; onOpen: () => void; onMilestone: (m: string) => void }) {
+/** The Best buy line on a lot card: what to buy and what it adds. */
+function BestBuyNote({ best }: { best: Buy }) {
+  return (
+    <div className="best-buy">
+      <b>Best buy</b>
+      <span>
+        {best.kind === 'upgrade' ? `Lv ${best.toLevel}: ` : ''}+<Money value={best.gain} />
+        /s for <Money value={best.cost} />
+      </span>
+      {mostlyIndex(best) && <small>Mostly through the price index: every ×2 and new lot lifts all your income.</small>}
+    </div>
+  );
+}
+
+function LotCard({ lot, mode, phase, best, onOpen, onMilestone }: { lot: LotDef; mode: BuyMode; phase: Phase; best?: Buy; onOpen: () => void; onMilestone: (m: string) => void }) {
   const s = useGame();
   const ls = s.lots[lot.id];
   const cat = CATEGORIES[lot.category]!;
@@ -227,9 +246,10 @@ function LotCard({ lot, mode, phase, onOpen, onMilestone }: { lot: LotDef; mode:
 
   if (!ls) {
     const price = buyPrice(s, lot);
-    const income = lot.income * (s.index / 100);
+    // What it would earn right now at Lv 1, with every bonus that already applies.
+    const income = incomeOf(incomeBreakdown(s, lot, phase, 1));
     return (
-      <div className="lot" data-state="unowned">
+      <div className="lot" data-state="unowned" data-best={!!best}>
         <LedIcon category={lot.category} />
         <div className="lot-info">
           <div className="lot-name">
@@ -243,6 +263,7 @@ function LotCard({ lot, mode, phase, onOpen, onMilestone }: { lot: LotDef; mode:
               /s
             </span>
           </div>
+          {best && <BestBuyNote best={best} />}
         </div>
         <button className="action-btn" data-kind="buy" disabled={s.cash < price} {...hold}>
           BUY
@@ -264,7 +285,7 @@ function LotCard({ lot, mode, phase, onOpen, onMilestone }: { lot: LotDef; mode:
   const sec = ls.security;
 
   return (
-    <div className="lot" data-state="owned" role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => e.key === 'Enter' && onOpen()}>
+    <div className="lot" data-state="owned" data-best={!!best} role="button" tabIndex={0} onClick={onOpen} onKeyDown={(e) => e.key === 'Enter' && onOpen()}>
       <LedIcon category={lot.category} />
       <div className="lot-info">
         <div className="lot-name">
@@ -292,6 +313,7 @@ function LotCard({ lot, mode, phase, onOpen, onMilestone }: { lot: LotDef; mode:
             <div style={{ width: `${progress * 100}%` }} />
           </div>
         )}
+        {best && <BestBuyNote best={best} />}
       </div>
       <button className="action-btn" disabled={!can} {...hold}>
         {mode === 'next' ? `UP → Lv${ls.level + count}` : `UP ×${Math.max(count, 1)}`}
@@ -349,9 +371,11 @@ function StaffPicker({ lot, slot }: { lot: LotDef; slot: 'manager' | 'security' 
                 ];
             const note = perkNote(s, lot, o.charId);
             if (note) detail.push(note);
+            if (isLocal(o.charId, lot.area)) detail.push(`Local: +${Math.round((LOCAL_MANAGER_MULT - 1) * 100)}% here`);
           } else {
             value = `M${st.muscle}`;
             detail = [o.strong ? `Strong enough (needs ${threat})` : `Too weak (needs ${threat})`];
+            if (isLocal(o.charId, lot.area)) detail.push(`Local: counts ×${LOCAL_GUARD_WEIGHT} for Home Turf`);
             if (from) detail.push(o.leavesUnguarded ? `Would leave ${from} unguarded` : `Guarding ${from}`);
             if (o.current) detail.unshift('Here now');
           }
@@ -385,13 +409,10 @@ function StaffPicker({ lot, slot }: { lot: LotDef; slot: 'manager' | 'security' 
 
 export function LotSheet({ lotId, onClose }: { lotId: string; onClose: () => void }) {
   const s = useGame();
-  const now = useNow(1000);
-  const phase = phaseAt(now);
   const lot = ALL_LOTS[lotId]!;
   const ls = s.lots[lotId];
   if (!ls) return null;
   const cat = CATEGORIES[lot.category]!;
-  const next = nextMilestone(ls.level);
   return (
     <Sheet onClose={onClose}>
       <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
@@ -402,21 +423,13 @@ export function LotSheet({ lotId, onClose }: { lotId: string; onClose: () => voi
             <span className="zh">{lot.nameZh}</span>
           </h2>
           <div style={{ fontSize: 13, fontWeight: 700, opacity: 0.7 }}>
-            {cat.name} {cat.nameZh} · earns ×1.5 by {cat.tag}
+            {cat.name} {cat.nameZh} · {lot.area === 'zhongshan' ? 'earns ×2 at night' : `earns ×1.5 by ${cat.tag}`}
           </div>
         </div>
       </div>
-      <h3>Numbers</h3>
-      <dl className="kv">
-        <dt>Level</dt>
-        <dd>{ls.level}</dd>
-        <dt>Income right now</dt>
-        <dd>
-          <Money value={lotIncome(s, lot, phase)} />
-          /s
-        </dd>
-        <dt>Next ×2 milestone</dt>
-        <dd>{next ? `Lv ${next}` : 'All reached'}</dd>
+      <h3>Income</h3>
+      <IncomeSources lot={lot} />
+      <dl className="kv" style={{ marginTop: 8 }}>
         <dt>Total invested</dt>
         <dd>
           <Money value={ls.invested} />
@@ -434,7 +447,9 @@ export function AreaScreen({ area, onBack, onToast }: { area: AreaId; onBack: ()
   const def = AREAS[area];
   const now = useNow(1000);
   const phase = phaseAt(now);
-  const mode = useGame().settings.buyMode;
+  const s = useGame();
+  const mode = s.settings.buyMode;
+  const best = bestBuy(s, def.lots);
   const setMode = (buyMode: BuyMode) => update((st) => ({ ...st, settings: { ...st.settings, buyMode } }));
   const [open, setOpen] = useState<string | null>(null);
   const [fight, setFight] = useState<string | null>(null);
@@ -483,10 +498,21 @@ export function AreaScreen({ area, onBack, onToast }: { area: AreaId; onBack: ()
         </div>
         <div className="lots">
           {def.lots.map((lot) => (
-            <LotCard key={lot.id} lot={lot} mode={mode} phase={phase} onOpen={() => setOpen(lot.id)} onMilestone={(m) => onToast(m, 'good')} />
+            <LotCard
+              key={lot.id}
+              lot={lot}
+              mode={mode}
+              phase={phase}
+              best={best?.lotId === lot.id ? best : undefined}
+              onOpen={() => setOpen(lot.id)}
+              onMilestone={(m) => onToast(m, 'good')}
+            />
           ))}
         </div>
-        <p className="map-hint">Tip: tap a lot you own to post a Manager and Security. Press and hold UP to keep upgrading.</p>
+        <p className="map-hint">
+          Best buy marks what adds the most income per NT$ here, day and night averaged. Tap a lot you own to post a Manager and Security, or press and
+          hold UP to keep upgrading.
+        </p>
       </div>
       {open && <LotSheet lotId={open} onClose={() => setOpen(null)} />}
       {fight && <TurfWar fightId={fight} onClose={() => setFight(null)} />}

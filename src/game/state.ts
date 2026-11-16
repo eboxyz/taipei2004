@@ -1,10 +1,19 @@
+import { drawCommissions } from './commissions';
 import { AREA_ORDER } from './content/areas';
 import { STARTERS } from './content/characters';
+import { drawOffers } from './headlines';
+import { seeded } from './rng';
 import { SQUAD_SIZE } from './constants';
 import { SAVE_VERSION, START_CASH, START_SAFE_HOURS } from './constants';
 import type { AreaId, AreaProgress, GameState } from './types';
 
 export function initialState(now: number): GameState {
+  const s = blankState(now);
+  // Seeded by the start time, so a fresh state never depends on Math.random.
+  return { ...s, run: { ...s.run, commissions: drawCommissions(s, seeded(now), now) } };
+}
+
+function blankState(now: number): GameState {
   return {
     version: SAVE_VERSION,
     createdAt: now,
@@ -26,16 +35,16 @@ export function initialState(now: number): GameState {
     squad: ['hai_shu', 'a_di', 'a_cai', ...Array<null>(SQUAD_SIZE - 3).fill(null)],
     currencies: { scratch: 0, incense: 0, lottery: 0 },
     zodiac: null,
-    draws: { templePity: 0, lotteryPity: 0, lastFreeTemple: null, count: { scratch: 0, temple: 0, lottery: 0 } },
+    draws: { templePity: 0, lotteryPity: 0, lastFreeTemple: null, fortune: null, count: { scratch: 0, temple: 0, lottery: 0 } },
     binderPaid: [],
-    run: { accountant: false, claims: 0, underdog: 0 },
+    run: { accountant: false, claims: 0, underdog: 0, startedAt: now, headline: null, offers: [], commissions: [], events: 0, agentWin: false },
     meta: { safeHours: START_SAFE_HOURS, face: 0, faceTotal: 0, squadSlots: 3, runs: 0, chapterClears: 0, upgrades: {}, claimedEver: [] },
     auto: { upgrade: [], buy: false, staff: false },
     cooldowns: {},
     hot: null,
     event: null,
     eventIn: 240,
-    settings: { numberFormat: 'cjk', buyMode: 1, battleSpeed: 8, battleAuto: true },
+    settings: { numberFormat: 'cjk', buyMode: 1, battleSpeed: 2, battleAuto: true },
     stats: { shakedownsRepelled: 0, shakedownBonus: 0, lotsBought: 0, fightsWon: 0, fightsLost: 0 },
     shakedownIn: 120,
   };
@@ -52,9 +61,10 @@ export function migrate(raw: unknown, now: number): GameState | null {
   // v2 added the squad, currencies and fight stats; v3 added zodiac, draws and the binder;
   // v4 added Face upgrades, cash-out, automation and street events.
   // v5 retired squad auto-fill; save.ts turns an auto squad into a fixed one (turf.ts can't be imported here).
+  // v8 added headlines and commissions: see `startHeadlines` below.
   // Filling missing fields from a fresh state covers every step so far, and partial saves still load.
   const base = initialState(now);
-  return {
+  const merged: GameState = {
     ...base,
     ...s,
     run: {
@@ -73,8 +83,8 @@ export function migrate(raw: unknown, now: number): GameState | null {
     auto: { ...base.auto, ...s.auto },
     settings: {
       ...base.settings, ...s.settings,
-      // v6 makes fast battles the default once for existing saves; later choices persist.
-      battleSpeed: s.version < 6 ? 8 : ([1, 2, 4, 8].includes(s.settings?.battleSpeed ?? 0) ? s.settings!.battleSpeed : 8),
+      // v7 resets the default to 2× once for existing saves; later choices persist.
+      battleSpeed: s.version < 7 ? 2 : ([1, 2, 4, 8].includes(s.settings?.battleSpeed ?? 0) ? s.settings!.battleSpeed : 2),
     },
     stats: { ...base.stats, ...s.stats },
     areas: { ...base.areas, ...s.areas },
@@ -85,5 +95,27 @@ export function migrate(raw: unknown, now: number): GameState | null {
     squad: Array.isArray(s.squad) && s.squad.length === base.squad.length ? s.squad : base.squad,
     lots: { ...s.lots },
     version: SAVE_VERSION,
+  };
+  return s.version < 8 ? startHeadlines(merged, now) : merged;
+}
+
+/**
+ * v8: a save from before headlines and commissions gets them for the run it's already in.
+ * The run's timer starts now, commissions already done are skipped, and a player who has
+ * cashed out before gets this year's three front pages to pick from straight away.
+ */
+function startHeadlines(s: GameState, now: number): GameState {
+  const rng = seeded(now);
+  return {
+    ...s,
+    run: {
+      ...s.run,
+      startedAt: now,
+      headline: null,
+      offers: s.meta.runs > 0 ? drawOffers(rng) : [],
+      commissions: drawCommissions(s, rng, now),
+      events: 0,
+      agentWin: false,
+    },
   };
 }

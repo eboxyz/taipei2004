@@ -139,9 +139,12 @@ The mechanics are inspired by Yakuza 0's real estate minigame. All characters, g
   - **Every candidate shows the real trade:** income added here, what the person they replace adds, and what's lost at the lot they'd leave, so the net on the right adds up. Role perks are said for that lot ("Nothing left to buy in Wanhua, so no discount").
   - **The best guard** is the weakest gangster who still meets the threat, which keeps stronger fighters free for tougher areas.
 - **Crew → Posts:** every lot you own by area, with its Manager and Security portraits. Empty slots and too-weak guards are highlighted, your top N earners are tagged, and free crew are listed at the bottom. Tapping a lot opens the same lot sheet and tips.
-- **Duty Roster (Face perk)** fills only empty slots with free crew, best value first: the strongest managers go to the biggest earners, and each guard is the weakest one strong enough for that area. It never moves anyone the player posted.
+- **Duty Roster (Face perk)** fills only empty slots with free crew. Visit empty manager posts by base income, biggest first; choose the free agent who adds the most income to each lot, including 店長 and Local bonuses. Each guard is the weakest one strong enough for that area. It never moves anyone the player posted.
 - **No auto-optimize for players.** "Optimize everyone" is a dev tool only.
 - **Dev tools** (the Office dev panel and the speed pill) exist only in dev builds. Production builds strip them out of the bundle entirely.
+
+#### Connections: Locals
+Crew from a district’s own gang (`CHARACTERS[id].faction === AREAS[area].rival`): Managers earn **×1.25** on that lot, stacking with 店長; Security count **×2** for Home Turf. Picker labels: “Local: +25% here” / “Local: counts ×2 for Home Turf”. Molong has no agents, so Ximending locals are guards only; Xiaoxiao/Xindian has none yet. Values await the balance pass.
 
 ### Shakedowns (rewards only)
 Rivals periodically lean on your lots in their area.
@@ -158,10 +161,23 @@ Rivals periodically lean on your lots in their area.
 - **Area twists:** Zhongshan's lots (all night businesses) earn ×2 at night instead of ×1.5. In East District one business type is "hot" and earns ×2; it rotates every game day (boutique → café → nightclub → department store).
 - **The price index** starts at 100 each run. It rises with buys and milestones and jumps on claims. It multiplies income and property values, drives Face at cash-out, and sets how many floors 101 has.
 
+### Income sources and Best buy (display only; no numbers changed)
+- **A lot's income = its base rate × four named sources**, used everywhere income is explained:
+  - **The lot:** level and ×2 milestones.
+  - **Time & place:** day/night, East District's hot type, a claimed district's ×2.
+  - **People:** the Manager.
+  - **Reputation:** Good Name, the binder, the price index.
+- **Lot sheet:** base rate, then each source's multiplier with a short line on what makes it up ("Off-hours (earns ×1.5 by day) · Claimed ×2"), then income right now.
+- **Lot cards:** an unowned lot shows what it would earn right now at Lv 1 with every bonus that already applies (it used to show only base × index).
+- **Office → Where your income comes from:** each district's share of income (day and night averaged; under 1% shows as "<1%"), then **Room to grow**, one line per source when it applies: lots within 3 levels of a ×2, the next district to claim, lots with no Manager (and free agents), new cards until the next binder step.
+- **Best buy:** of buying a lot, taking one level, or going to the next ×2, the purchase that adds the most income per NT$, day and night averaged. It counts the price-index bump, which raises everything you own, so the number is the real change in income. When the index is most of it, the card and tip say so ("mostly through the price index").
+  - **Each district's list** marks its best buy with a green ring and a line ("Lv 10: +NT$X/s for NT$Y"), affordable or not.
+  - **The map's next-step tip** names the best buy across all open districts when you can afford it, and later says how much more to save for it.
+
 ### Automation (each step is unlocked)
 1. Tap the safe to collect.
 2. An accountant collects automatically while the game is open.
-3. Auto-upgrade per area.
+3. Auto-upgrade per area (**Standing Orders**): takes the best buy among your lots there, one level at a time, and waits for it rather than spending on something worse.
 4. Auto-buy the cheapest lot.
 5. Auto-assign the best staff.
 
@@ -182,7 +198,7 @@ Steps 1–2 unlock during a run. Steps 3–5 are permanent Face upgrades, each w
 
 ### Basics
 - **Fights:** in each area, the first lieutenant unlocks at 25% market share, the second at 50%, and the boss at 75%.
-- **Length:** about 30–60 simulated seconds for a lieutenant and about 90 for a boss. Playback defaults to **8×** (roughly 4–12 real seconds), with 1× / 2× / 4× / 8× controls. Existing pre-v6 saves switch to 8× once; later speed choices persist. Ultimate reveals are brief visual overlays and do not pause combat. Battle advancement uses elapsed wall time with fixed simulation steps, independent of rendering; a background timer and visibility/focus handlers catch up throttled tabs. Results resolve once. A browser that fully suspends the tab catches up when it can run again.
+- **Length:** about 30–60 simulated seconds for a lieutenant and about 90 for a boss. Playback defaults to **2×** (roughly 15–45 real seconds), with 1× / 2× / 4× / 8× controls. Existing pre-v7 saves switch to 2× once; later speed choices persist. Ultimate reveals are brief visual overlays and do not pause combat. Battle advancement uses elapsed wall time with fixed simulation steps, independent of rendering; a background timer and visibility/focus handlers catch up throttled tabs. Results resolve once. A browser that fully suspends the tab catches up when it can run again.
 - **Losing costs nothing.** The results screen gives a hint about what to try next.
 - **Quick claim:** you can skip a fight when your army is at least 2× the recommended power.
 - **Time limit:** 75 s for a lieutenant and 120 s for a boss. If the rival holds out, it counts as a loss, which still costs nothing.
@@ -220,8 +236,10 @@ Steps 1–2 unlock during a run. Steps 3–5 are permanent Face upgrades, each w
     - **All-around:** total fighting power with a discount for an army summoner, whose signature aura makes commanding especially useful. Back-row attackers go before support; Defensive also considers Business when ordering that row.
     - **Commander selection:** choose Boss first (reserving scarce SSR cards), then Lieutenant, from legal **bench cards outside the army**. Prefer auras matching the style, then estimated aura/ultimate utility. Only if there is no legal bench commander, promote the least valuable legal army fighter by that style's fighting score, and only with a legal bench replacement for its army slot. Reorder the rows after backfilling. If no legal replacement exists, keep the fighter attacking and leave command empty.
     - **Measured gang suggestions:** Miaokou → All-around; Molong → Defensive (tied with All-around against the boss); Yuejian → All-around (tied with Defensive); Jin Tangchi → Offensive; Tongtian → Offensive (Defensive also performs strongly). These are suggestions for typical progression collections, not guarantees for every roster. The 300-seed style sweep has no 0% fills in any scenario; Offensive is still a weaker daytime choice against Molong and Yuejian bosses. Full before/after rates and lineups: [`battle-sim-results.md`](battle-sim-results.md).
-- **Home Turf:** +3% Grit to the whole army for each Security posted in that area. This replaced the idea of a reinforcement bench.
+- **Home Turf:** +3% Grit to the whole army for each Security posted in that area; a local guard counts twice (+6% before Face upgrades). The prep modifier names the local count. This replaced the idea of a reinforcement bench.
 - **Prep screen:** tap a slot to pick a card (drag-and-drop later), or use one of the three fills. A matchup line names the rival's trick and suggests a fill (`MATCHUPS` in `content/fights.ts`). The fills are three evenly spaced, equal-width buttons with English names, brief descriptions and a visible Suggested label; the Chinese marks are decorative. It shows your power against the recommended power, every modifier, and a hint like "nightfall in 4 min".
+- **Odds, in words:** the prep screen runs 20 practice battles of your exact squad (same engine, fixed seeds, in small slices so phones don't stutter) and shows **Likely win** (70%+), **Even fight** (35–70%) or **Long shot**. If the other half of the day would rate better, it says so and when ("Likely win at night, in 4 min"). Displayed power stays as a rough guide only.
+- **After every fight, one line on what happened,** from the finished battle only: win time and crew lost, time running out, the front row falling, plus Tongtian's permit stacks or Miaokou's troupe runners when they mattered. The existing tips stay underneath after a loss.
 - A card can be posted at a lot and fight in the squad at the same time.
 
 #### Role auras (commanders without a signature aura)
@@ -315,6 +333,9 @@ The 10 rival lieutenants join as SR and the 5 bosses as SSR, so everyone earns c
 - **Guarantees:** every 10th temple draw is SR or better. The lottery guarantees an SSR by the 40th ticket.
 - Guarantee counters carry over between runs, and odds are shown in the game.
 
+#### Connections: Today’s fortune
+The **free daily Temple stick** sets that day’s street-event rate: N **×1.25**, R **×1.5**, SR **×1.75**, SSR **×2**. Every stick helps. Use its rarity **before moon-block upgrades**, keyed to `dayKey(gameNow())` like the free visit. Paid draws do not change it. The next scheduled event uses the rate; an existing countdown stays unchanged. The map pill and free-draw slip show the rate. Older saves default to no fortune; cashing out keeps today’s fortune with the draw state.
+
 ### Currencies (never reset)
 
 The Map includes a compact one-row **next-step tip** above the map (challenge a ready rival, buy an affordable lot, post a free agent, collect the safe, save toward the next lot, or reach the next rival's share). It hides when there's nothing useful to suggest, and dismissing one tip is remembered. Below the stations, a collapsible **Resource guide** starts folded and remembers if you open it. It links to Draws and an available rewarded rematch. It explains draw costs, currency sources and reward timing, highlights whether the daily free Temple visit is ready, and briefly covers cash, XP and Face. English labels accompany the decorative currency glyphs.
@@ -354,11 +375,38 @@ No real money anywhere.
 - **Face reward:** floor(√(best net worth this run ÷ NT$10億)), plus 2 per area claimed this run, plus 1 per underdog win (a first win within 5% of the threshold). A cash-out also pays 1 lottery ticket.
 - The button always shows "Cash out now: +X Face" and how far you are from the next Face.
 - When cashing out would raise your Face by 50% or more (and at least 10 Face, so a first cash-out waits for about a Ximending claim), the button glows and the game suggests it's a good time to retire.
-- **Ceremony:** one illustration, then "…but nobody stays retired."
+- **Ceremony:** one illustration, then "…but nobody stays retired." Then the new run's three front pages (below).
 
 | Resets | Stays |
 |---|---|
-| Cash, lots, upgrades, area control, price index, safe | Cards, stars, levels, binder, draw currencies, guarantee counters, Face and Face upgrades, slot unlocks, automation |
+| Cash, lots, upgrades, area control, price index, safe, this year's headline and commissions | Cards, stars, levels, binder, draw currencies, guarantee counters, Face and Face upgrades, slot unlocks, automation |
+
+### Run variety: this year's headline and commissions
+- **This year's headline (今年頭條):** from run 2 on, the cash-out ends with three tabloid front pages, drawn from the pool below without repeats. You pick one and it applies for the whole run. Run 1 has none. The front pages are drawn in code (red 號外 strip, big 漢字 headline, a line of flavor, the rule, "Good for"), so there's no art. Until you pick, the map's next-step tip and the Office dot point you to them. The headline leads the map's news ticker and sits at the top of Office → This year.
+
+  | Headline | For the whole run | Good for |
+  |---|---|---|
+  | Typhoon Days 颱風假 | Safe holds 4 more hours (past the usual 24 h cap) | Playing mostly offline |
+  | Night Market Fever 夜市熱 | Night businesses everywhere earn ×2 at night, like Zhongshan | Stacking night lots |
+  | Election Year 選舉年 | Price index grows 50% faster | Buying and ×2 milestones |
+  | New MRT Line 捷運通車 | Lots in one named Chapter 1 district cost 30% less | Rushing that district |
+  | Temple Festival Year 遶境年 | Street events 2× as often; processions pay double | Playing actively |
+  | Idol Drama Craze 偶像劇熱 | Walk-in recruits 2× as often | Collecting cards |
+  | Stock Rally 股市狂飆 | Properties count 1.5× toward net worth, so more Face | Chasing Face |
+  | Rearmed Rivals 重整旗鼓 | Rivals 15% stronger (recommended power too); every first win pays double incense and +1 Face at cash-out | Fighting |
+
+- **Commissions (委託):** three optional goals per run (run 1 included), drawn from the pool below. Each pays 1 lottery ticket the moment it's done, with a toast, so Face pacing is untouched. A goal that's already done when the run starts is never drawn. Shown in Office → This year with progress bars.
+  - Win a Turf War with only agents in your squad (commanders included).
+  - Claim Ximending within 2 hours (game time) of starting the run. After that it shows "Missed", the only one that can lapse.
+  - Take one lot to Lv 100.
+  - Repel 10 shakedowns this run.
+  - Win an underdog fight.
+  - Own all 8 lots in one district.
+  - Raise the price index to 130.
+  - Take 5 street events this run.
+  - Have a Manager on 6 lots in one district.
+- **Saves (v8):** an older save gets three commissions for the run it's in (the timer starts on load), and if it has cashed out before, three front pages to pick from straight away.
+- Headline and commission sizes are new values; they get tuned in the balance pass. Values live in `constants.ts` (Run variety).
 
 ### Face upgrade tree
 Four branches, 18 upgrades (most with several levels), with costs that rise as you buy more. Defined in `src/game/content/face.ts`:
@@ -396,6 +444,7 @@ Turf Wars launch from an area screen.
 
 ### Screens
 - **Map:** the metro map with a status bar (cash, income per second, clock with ☀/🌙), red dots for anything worth tapping, and street-event icons.
+  - **Next-step tip** (one at a time, dismissable): front pages waiting to be picked → a first-win fight that's ready → an affordable best buy → a free agent with an empty Manager slot → income waiting in the safe → if every open lot is bought, the market share the next rival needs → how much more to save for the best buy.
 - **The safe** is a raised button in the middle of the tab bar, so it never covers the lot buttons.
 - **Area screen:** an illustrated banner (day/night), a property-ownership count and bar, a fold-out market-influence explanation/bar, and fight buttons at 25/50/75% influence (A-Biao unlocks after the first property), the buy-amount toggle, and a list of lot cards (icon, name, ☀/🌙, level, income, (M)(S) staff slots, upgrade button). Tapping a lot opens a bottom sheet for staffing and details.
 - **Turf War:** prep → battle → results.
@@ -479,8 +528,19 @@ Turf Wars launch from an area screen.
 ---
 
 ## Open items
+- **Light story only (decided 2026-11-16):** keep the rough story already in §1 (the arc, bosses' last lines pointing at Xiaoxiao, the Xindian ending), but no exposition: no story texts, no dialogue scenes, nothing players have to read. The improvement pass's "story beats" section was dropped.
 - Xiaoxiao Realty characters: secret boss and 2 lieutenants
 - Balancing after playtests (`npm run sim` and `npm run sim:fights` hold the current targets)
+- **Planned balance pass (decided, done together later):**
+  - **Repelled shakedowns weaken the gang (approved, waits for this pass):** each shakedown repelled in a district this run makes that gang’s next first-time fight there 2% weaker, up to 10%; the prep screen names it (“Your guards ran off 4 Molong shakedowns: Molong is 8% weaker”).
+  - **Tune Locals (×1.25, ×2) and fortune rates.**
+  - Rival **home times**: a gang gets the same +20% as your crew at its home time. Miaokou day, Molong night, Yuejian night, Jin Tangchi day, Tongtian day. The prep screen names it ("Yuejian is strongest at night").
+  - **Shorter day/night:** 6 minutes of day, 6 of night.
+  - **Re-tune** so the expected squad wins about 70% at a gang's off-time and about 45% at its home time.
+  - **Fill balance:** Defensive currently matches or beats All-around everywhere; Offensive is a trap in a few fights.
+  - **Price index vs. milestones:** late in a run, a cheap lot's ×2 milestone adds far more through the index (+0.25, lifting all income) than the lot earns, so Best buy points at cheap milestones in early districts. Decide whether that's intended (for example, scale the index gain with the lot's price).
+  - **Flagship district (idea):** each run, one district's twist gets stronger, so where you invest becomes a real choice instead of buying everything.
+  - **Headlines and commissions:** check each headline's pull (does any one dominate?), Rearmed Rivals' strength against its Face, and whether "Claim Ximending within 2 hours" and "price index 130" fit run 1.
 - Notoriety levels (after a playtest)
 - Sound (later)
 - Database and auth provider (milestone 5)

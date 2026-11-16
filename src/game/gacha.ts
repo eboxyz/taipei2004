@@ -6,7 +6,7 @@
 import { payBinderPages } from './binder';
 import { CHARACTERS } from './content/characters';
 import { ZODIAC_BY_ID, ZODIAC_WEIGHT } from './content/zodiac';
-import { MAX_STARS } from './constants';
+import { FORTUNE_EVENT_RATE, MAX_STARS } from './constants';
 import { perk } from './perks';
 import type { CharState, Currencies, DrawKind, FactionId, GameState, Rarity, Role } from './types';
 
@@ -54,6 +54,18 @@ export function featuredEndsIn(now: number): number {
 export function dayKey(now: number): string {
   const d = new Date(now);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Today's fortune from the free temple stick, or null before today's free visit. */
+export function fortuneToday(state: GameState, now: number): Rarity | null {
+  const f = state.draws.fortune;
+  return f && f.day === dayKey(now) ? f.rarity : null;
+}
+
+/** Street events speed-up from today's fortune (1 with no stick today). Every stick helps. */
+export function fortuneEventRate(state: GameState, now: number): number {
+  const r = fortuneToday(state, now);
+  return r ? FORTUNE_EVENT_RATE[r] : 1;
 }
 
 /** Whether a character can come out of a draw. Starters and "All" cards are in every draw; exclusives only in theirs. */
@@ -214,6 +226,8 @@ export function draw(state: GameState, kind: DrawKind, rng: Rng, now: number): {
     }
     d.templePity = r === 'SR' || r === 'SSR' ? 0 : d.templePity + 1;
     rarities = [r];
+    // The free daily stick sets today's fortune (before any moon-block upgrade).
+    if (check.free) d.fortune = { day: dayKey(now), rarity: r };
   } else {
     rarities = Array.from({ length: LOTTERY_BALLS }, () => rollRarity('lottery', rng));
     if (!rarities.includes('SSR') && d.lotteryPity + 1 >= LOTTERY_PITY) {

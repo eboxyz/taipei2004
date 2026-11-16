@@ -12,15 +12,18 @@ import {
   FIGHT_XP_FIRST_WIN,
   FIGHT_XP_LOSS,
   FIGHT_XP_WIN,
+  LOCAL_GUARD_WEIGHT,
   LT_SLOT,
   PHASE_BONUS,
+  REARMED_INCENSE_MULT,
   SHARE_BONUS_PER_STEP,
   SHARE_THRESHOLDS,
   REMATCH_COOLDOWN_MS,
   SQUAD_SIZE,
   UNDERDOG_MARGIN,
 } from './constants';
-import { isAreaOpen, marketShare } from './economy';
+import { isAreaOpen, isLocal, marketShare } from './economy';
+import { headlineIs, news } from './headlines';
 import { perk } from './perks';
 import { payBinderPages } from './binder';
 import { addCard } from './gacha';
@@ -278,9 +281,13 @@ export function buildYourSide(state: GameState, fight: FightDef, phase: Phase): 
   const faction = FACTION_BONUS[Math.min(3, most)] ?? 0;
   if (faction > 0) mods.push({ label: `Same faction ×${most}`, value: pct(faction), good: true });
 
-  const guards = AREAS[fight.area].lots.filter((l) => state.lots[l.id]?.security).length;
-  const turf = guards * perk.homeTurf(state);
-  if (turf > 0) mods.push({ label: `Home Turf: ${guards} Security posted`, value: `${pct(turf)} Grit`, good: true });
+  // Locals (Security from this gang's own ranks) count extra: they know the neighborhood.
+  const posted = AREAS[fight.area].lots.map((l) => state.lots[l.id]?.security).filter((id): id is string => !!id);
+  const guards = posted.length;
+  const locals = posted.filter((id) => isLocal(id, fight.area)).length;
+  const turf = (guards + locals * (LOCAL_GUARD_WEIGHT - 1)) * perk.homeTurf(state);
+  if (turf > 0)
+    mods.push({ label: `Home Turf: ${guards} Security posted${locals ? ` (${locals} local, counted ×${LOCAL_GUARD_WEIGHT})` : ''}`, value: `${pct(turf)} Grit`, good: true });
 
   const training = perk.training(state);
   if (training > 0) mods.push({ label: 'Training 練兵 (Face)', value: pct(training), good: true });
@@ -310,10 +317,11 @@ export function buildYourSide(state: GameState, fight: FightDef, phase: Phase): 
   return { specs, mods, power: specs.reduce((s, u) => s + unitPower(u), 0) };
 }
 
-function enemySpec(fight: FightDef, e: EnemyDef): UnitSpec {
+/** `rearmed` scales a rival unit for Rearmed Rivals (1 otherwise). */
+function enemySpec(fight: FightDef, e: EnemyDef, rearmed = 1): UnitSpec {
   const def = CHARACTERS[e.id]!;
   const st: Stats = statsOf(e.id, { level: e.level, xp: 0, stars: 1 });
-  const k = (e.scale ?? 1) * (fight.strength ?? 1);
+  const k = (e.scale ?? 1) * (fight.strength ?? 1) * rearmed;
   return {
     charId: e.id,
     slot: e.slot,
@@ -329,19 +337,21 @@ function enemySpec(fight: FightDef, e: EnemyDef): UnitSpec {
   };
 }
 
-export function buildTheirSide(fight: FightDef): SideBuild {
-  const specs = fight.units.map((e) => enemySpec(fight, e));
+/** The rival side. Pass the state so this run's headline (Rearmed Rivals) applies. */
+export function buildTheirSide(fight: FightDef, state?: GameState): SideBuild {
+  const k = state ? news.rivalMult(state) : 1;
+  const specs = fight.units.map((e) => enemySpec(fight, e, k));
   return { specs, mods: [], power: specs.reduce((s, u) => s + unitPower(u), 0) };
 }
 
-export function recommendedPower(fight: FightDef): number {
-  return fight.recommended;
+export function recommendedPower(fight: FightDef, state?: GameState): number {
+  return Math.round(fight.recommended * (state ? news.rivalMult(state) : 1));
 }
 
 export function battleInputFor(state: GameState, fightId: string, phase: Phase): BattleInput {
   const fight = FIGHTS[fightId]!;
   const you = buildYourSide(state, fight, phase);
-  const them = buildTheirSide(fight);
+  const them = buildTheirSide(fight, state);
   const kunbo = you.specs.find((s) => s.charId === 'kun_bo' && s.slot >= 5);
   return {
     you: you.specs,
@@ -350,7 +360,7 @@ export function battleInputFor(state: GameState, fightId: string, phase: Phase):
     night: phase === 'night',
     boost: { ultCharge: perk.ultCharge(state), startCharge: perk.warmUp(state) },
     runner: {
-      them: fight.runner ? enemySpec(fight, fight.runner) : undefined,
+      them: fight.runner ? enemySpec(fight, fight.runner, news.rivalMult(state)) : undefined,
       // Your own Kun-bo calls in agency runners.
       you: kunbo ? { ...enemySpec(fight, { id: 'street_punk', level: kunbo.level, slot: -1, grunt: true }), name: 'Troupe Runner', nameZh: '陣頭', faction: 'agency' } : undefined,
     },
@@ -431,6 +441,9 @@ export function resolveFight(state: GameState, fightId: string, outcome: 'win' |
   }
 
   s = { ...s, stats: { ...s.stats, fightsWon: s.stats.fightsWon + 1 } };
+  // For the "only agents" commission: everyone in the squad, commanders included, is an agent.
+  const squad = effectiveSquad(state).filter((id): id is string => !!id);
+  if (squad.length > 0 && squad.every((id) => classOf(id) === 'agent') && !s.run.agentWin) s = { ...s, run: { ...s.run, agentWin: true } };
   if (!first) {
     if (cooling) return { state: s, result: { ...result, cooling: true } };
     result.scratch = 1;
@@ -444,7 +457,7 @@ export function resolveFight(state: GameState, fightId: string, outcome: 'win' |
     };
   }
 
-  result.incense = Math.round(fight.rewards.incense * perk.incenseMult(state));
+  result.incense = Math.round(fight.rewards.incense * perk.incenseMult(state) * (headlineIs(state, 'rearmed') ? REARMED_INCENSE_MULT : 1));
   result.lottery = fight.rewards.lottery;
   result.claimed = fight.key === 'boss';
   const share = marketShare(state, fight.area);

@@ -3,7 +3,8 @@ import { payBinderPages } from './binder';
 import { AREA_ORDER } from './content/areas';
 import { EVENT_LIFETIME_S, EVENT_MAX_S, EVENT_MIN_S } from './constants';
 import { incomePerSec, isAreaOpen } from './economy';
-import { addCard, pickCard, type CardGain } from './gacha';
+import { addCard, fortuneEventRate, pickCard, type CardGain } from './gacha';
+import { news } from './headlines';
 import { perk } from './perks';
 import type { EventKind, GameState, StreetEvent } from './types';
 
@@ -23,14 +24,18 @@ export const EVENT_INFO: Record<EventKind, { glyph: string; name: string }> = {
   tip: { glyph: '報', name: 'Broker tip' },
 };
 
-export function nextEventDelay(state: GameState, rng: Rng): number {
-  return (EVENT_MIN_S + rng() * (EVENT_MAX_S - EVENT_MIN_S)) / perk.eventRate(state);
+/** Seconds until the next street event. Pass `now` so today's temple fortune counts. */
+export function nextEventDelay(state: GameState, rng: Rng, now?: number): number {
+  const fortune = now === undefined ? 1 : fortuneEventRate(state, now);
+  return (EVENT_MIN_S + rng() * (EVENT_MAX_S - EVENT_MIN_S)) / (perk.eventRate(state) * fortune);
 }
 
-function pickKind(rng: Rng): EventKind {
-  const total = KINDS.reduce((s, [, w]) => s + w, 0);
+function pickKind(state: GameState, rng: Rng): EventKind {
+  // Idol Drama Craze: walk-in recruits turn up more often.
+  const kinds = KINDS.map(([k, w]): [EventKind, number] => [k, k === 'recruit' ? w * news.recruitMult(state) : w]);
+  const total = kinds.reduce((s, [, w]) => s + w, 0);
   let r = rng() * total;
-  for (const [k, w] of KINDS) {
+  for (const [k, w] of kinds) {
     r -= w;
     if (r < 0) return k;
   }
@@ -38,7 +43,7 @@ function pickKind(rng: Rng): EventKind {
 }
 
 /** Counts down the current event and spawns the next one. */
-export function tickEvents(state: GameState, dt: number, rng: Rng): GameState {
+export function tickEvents(state: GameState, dt: number, rng: Rng, now?: number): GameState {
   let { event, eventIn } = state;
   if (event) {
     const expiresIn = event.expiresIn - dt;
@@ -46,11 +51,11 @@ export function tickEvents(state: GameState, dt: number, rng: Rng): GameState {
   }
   eventIn -= dt;
   if (eventIn <= 0) {
-    eventIn = nextEventDelay(state, rng);
+    eventIn = nextEventDelay(state, rng, now);
     if (!event) {
       const open = AREA_ORDER.filter((a) => isAreaOpen(state, a) && a !== 'xindian');
       const area = open[Math.floor(rng() * open.length)] ?? 'wanhua';
-      const kind = pickKind(rng);
+      const kind = pickKind(state, rng);
       event = { id: Math.floor(rng() * 1e9), area, kind, xiaoxiao: kind === 'tip' && rng() < 0.35, expiresIn: EVENT_LIFETIME_S };
     }
   }
@@ -70,11 +75,11 @@ export interface EventReward {
 export function claimEvent(state: GameState, rng: Rng, now: number): { state: GameState; reward: EventReward } | null {
   const event = state.event;
   if (!event) return null;
-  let s: GameState = { ...state, event: null };
+  let s: GameState = { ...state, event: null, run: { ...state.run, events: state.run.events + 1 } };
   const reward: EventReward = { event };
   switch (event.kind) {
     case 'procession': {
-      const cash = Math.max(5000, incomePerSec(s, 'average') * 120);
+      const cash = Math.max(5000, incomePerSec(s, 'average') * 120) * news.processionMult(s);
       s = { ...s, cash: s.cash + cash, lifetimeEarned: s.lifetimeEarned + cash, runEarned: s.runEarned + cash };
       reward.cash = cash;
       break;

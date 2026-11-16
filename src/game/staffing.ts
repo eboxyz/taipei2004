@@ -164,19 +164,17 @@ export function slotAdvice(state: GameState, lotId: string, slot: Slot, fmt: (n:
 
 /* ---------- Filling posts: Duty Roster, and the dev-only optimizer ---------- */
 
-function managerMultOf(state: GameState, id: string): number {
-  const b = statsOf(id, state.characters[id]).business;
-  return (1 + b / 100) * (CHARACTERS[id]?.role === 'dianzhang' ? 1.25 : 1);
-}
-
 /**
  * Fills empty slots with free crew, best value first. Posts that are already filled are left alone.
- * - Managers: the strongest free agents go to the biggest earners that have no Manager.
+ * - Managers: biggest earners first, each empty lot gets the free agent who adds the most income there
+ *   (so 店長 and locals land where their bonus counts).
  * - Guards: unclaimed areas first, toughest area first, each lot getting the weakest free gangster
  *   who is strong enough. Anyone left guards the remaining unclaimed lots (attempts still earn XP),
  *   then claimed areas (Home Turf in rematches).
  * Role perks other than 店長 are ignored.
  */
+// Managers are matched lot by lot (lots × free agents income checks), but only when both exist,
+// and the next tick exits early once every free agent is posted.
 export function fillPosts(state: GameState): GameState {
   // Cheap early exit, since Duty Roster runs every tick.
   const posted = new Set<string>();
@@ -203,9 +201,19 @@ export function fillPosts(state: GameState): GameState {
   };
 
   if (agents.length > 0) {
-    agents.sort((a, b) => managerMultOf(s, b) - managerMultOf(s, a));
+    const free = new Set(agents);
     const empty = owned.filter((l) => !s.lots[l.id]!.manager).sort((a, b) => baseIncome(s, b) - baseIncome(s, a));
-    empty.forEach((lot, i) => agents[i] && assign(lot.id, 'manager', agents[i]));
+    for (const lot of empty) {
+      let best: string | null = null;
+      let most = -Infinity;
+      for (const id of free) {
+        const gain = managerGain(s, lot.id, id);
+        if (gain > most) [best, most] = [id, gain];
+      }
+      if (!best) break;
+      assign(lot.id, 'manager', best);
+      free.delete(best);
+    }
   }
 
   if (gangsters.length > 0) {

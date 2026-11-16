@@ -5,6 +5,7 @@ import { canCashOut, cashOutPreview } from './game/face';
 import { gameNow } from './ui/time';
 import { ALL_LOTS, AREAS, AREA_ORDER } from './game/content/areas';
 import { CHARACTERS } from './game/content/characters';
+import { COMMISSIONS } from './game/commissions';
 import { ACCOUNTANT_COST } from './game/constants';
 import { formatMoney } from './game/format';
 import { postOf } from './game/economy';
@@ -38,6 +39,8 @@ function describe(e: GameEvent, s: GameState): Omit<Toast, 'id'> | null {
       return { tone: 'good', text: `Land Scout bought ${ALL_LOTS[e.lotId]?.name}.` };
     case 'level-up':
       return { tone: 'good', text: `${CHARACTERS[e.charId]?.name} reached Lv ${e.level}!` };
+    case 'commission':
+      return { tone: 'good', text: `Commission done: ${COMMISSIONS[e.id].text} +1 lottery ticket 樂透` };
     default:
       return null;
   }
@@ -85,7 +88,7 @@ function Game() {
     map: fightReady,
     crew: freeCrew && openSlots,
     draws: !s.zodiac || (['scratch', 'temple', 'lottery'] as const).some((kind) => canDraw(s, kind, gameNow()).ok),
-    office: (canHireAccountant(s) && s.cash >= ACCOUNTANT_COST) || (canCashOut(s) && cashOutPreview(s).goodTime),
+    office: (canHireAccountant(s) && s.cash >= ACCOUNTANT_COST) || (canCashOut(s) && cashOutPreview(s).goodTime) || s.run.offers.length > 0,
   };
 
   return (
@@ -93,7 +96,15 @@ function Game() {
       <TopBar />
       {saveHealth.failed && <button className="save-warning" onClick={() => { setArea(null); setTab('office'); }}>Saving is unavailable. Tap to export a backup in Office.</button>}
       <main className="screen" ref={screenRef}>
-        {tab === 'map' && !area && <MapScreen onOpenDraws={() => setTab('draws')} onOpenCrew={() => setTab('crew')} onOpenArea={setArea} onLocked={(m) => toast(m)} />}
+        {tab === 'map' && !area && (
+          <MapScreen
+            onOpenDraws={() => setTab('draws')}
+            onOpenCrew={() => setTab('crew')}
+            onOpenOffice={() => setTab('office')}
+            onOpenArea={setArea}
+            onLocked={(m) => toast(m)}
+          />
+        )}
         {tab === 'map' && area && <AreaScreen area={area} onBack={() => setArea(null)} onToast={toast} />}
         {tab === 'crew' && <CrewScreen />}
         {tab === 'draws' && <DrawsScreen />}

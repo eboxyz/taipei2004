@@ -1,5 +1,7 @@
 /** Tuning knobs. Change these, then run `npm run sim` to check pacing. */
-export const SAVE_VERSION = 6;
+import type { Rarity } from './types';
+
+export const SAVE_VERSION = 8;
 
 /** Upgrade cost multiplier per level. */
 export const UPGRADE_GROWTH = 1.17;
@@ -98,6 +100,37 @@ export const FACE_PER_CLAIM = 2;
 export const FACE_PER_UNDERDOG = 1;
 /** Winning within this much of a fight's threshold counts as an underdog win. */
 export const UNDERDOG_MARGIN = 0.05;
+
+/* ---------- Run variety: headlines and commissions (new values; tune in the balance pass) ---------- */
+
+/** Front pages offered at each cash-out. */
+export const HEADLINE_OFFERS = 3;
+export const TYPHOON_SAFE_HOURS = 4;
+/** Night Market Fever: night businesses everywhere earn this at night, like Zhongshan. */
+export const NIGHT_MARKET_MULT = 2;
+export const ELECTION_INDEX_MULT = 1.5;
+export const MRT_LOT_DISCOUNT = 0.3;
+export const FESTIVAL_EVENT_RATE = 2;
+export const FESTIVAL_PROCESSION_MULT = 2;
+export const IDOL_RECRUIT_MULT = 2;
+/** Stock Rally: properties count this much toward net worth (and so Face). */
+export const STOCK_RALLY_PROPERTY = 1.5;
+export const REARMED_STRENGTH = 1.15;
+export const REARMED_FACE_PER_WIN = 1;
+export const REARMED_INCENSE_MULT = 2;
+
+export const COMMISSIONS_PER_RUN = 3;
+/** Fast Ximending: claim it within this much game time of the run starting. */
+export const FAST_XIMENDING_MS = 2 * 60 * 60_000;
+
+/* ---------- Connections between systems (new values; tune in the balance pass) ---------- */
+
+/** Locals: a Manager from the district's own gang earns this much more there. */
+export const LOCAL_MANAGER_MULT = 1.25;
+/** Locals: Security from the district's own gang counts this many times toward Home Turf there. */
+export const LOCAL_GUARD_WEIGHT = 2;
+/** Today's fortune: the free temple stick's grade (by card rarity) speeds up street events for the day. */
+export const FORTUNE_EVENT_RATE: Record<Rarity, number> = { N: 1.25, R: 1.5, SR: 1.75, SSR: 2 };
 
 /** Street events: one at a time, every few minutes, while the game is open. */
 export const EVENT_MIN_S = 200;

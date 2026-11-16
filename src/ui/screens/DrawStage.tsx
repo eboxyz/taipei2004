@@ -4,6 +4,7 @@ import { BINDER_PAGES } from '../../game/content/binder';
 import { FACTIONS } from '../../game/content/areas';
 import { CHARACTERS, ROLES } from '../../game/content/characters';
 import { ZODIAC_BY_ID } from '../../game/content/zodiac';
+import { FORTUNE_EVENT_RATE } from '../../game/constants';
 import {
   BLOCK_EN,
   BLOCK_ZH,
@@ -506,6 +507,7 @@ function TempleMachine() {
           <span>第 {result.stick.number} 籤</span>
           <b>{result.stick.grade}</b>
           <small>{STICK_GRADE_EN[result.stick.grade]} fortune</small>
+          {result.free && <small>Today: street events ×{FORTUNE_EVENT_RATE[result.gains[0]!.rarity]}</small>}
         </div>
       )}
       {stage === 'card' && gain && result && (

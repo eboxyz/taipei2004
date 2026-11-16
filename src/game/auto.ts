@@ -2,9 +2,10 @@
 import { buyLot, upgradeLot } from './actions';
 import { ALL_LOTS, AREAS, AREA_ORDER } from './content/areas';
 import { buyPrice, isAreaOpen, isLotLocked, upgradeCost } from './economy';
+import { bestBuy } from './income';
 import { perk } from './perks';
 import { fillPosts } from './staffing';
-import type { GameEvent, GameState } from './types';
+import type { AreaId, GameEvent, GameState } from './types';
 
 /**
  * Duty Roster: fills empty Manager and Security slots with free crew, best value first
@@ -27,16 +28,17 @@ export function autoBuy(state: GameState): { state: GameState; events: GameEvent
   return r.ok ? { state: r.state, events: [{ kind: 'auto-bought', lotId: cheapest.id }] } : { state, events: [] };
 }
 
-/** Keeps buying the cheapest single upgrade among your lots in an area. */
-export function autoUpgrade(state: GameState, area: string, maxSteps = 25): { state: GameState; events: GameEvent[] } {
+/**
+ * Standing Orders: keeps taking the best buy among your lots in an area, one level at a time
+ * (so a push to the next ×2 happens step by step). Waits for the best one rather than
+ * spending on a worse one.
+ */
+export function autoUpgrade(state: GameState, area: AreaId, maxSteps = 25): { state: GameState; events: GameEvent[] } {
   let s = state;
   const events: GameEvent[] = [];
   for (let i = 0; i < maxSteps; i++) {
-    const lots = Object.keys(s.lots)
-      .map((id) => ALL_LOTS[id]!)
-      .filter((l) => l && l.area === area)
-      .sort((a, b) => upgradeCost(s, a, s.lots[a.id]!.level) - upgradeCost(s, b, s.lots[b.id]!.level));
-    const lot = lots[0];
+    const best = bestBuy(s, AREAS[area].lots, { upgradesOnly: true });
+    const lot = best ? ALL_LOTS[best.lotId] : undefined;
     if (!lot || upgradeCost(s, lot, s.lots[lot.id]!.level) > s.cash) break;
     const r = upgradeLot(s, lot.id, 1);
     if (!r.ok) break;

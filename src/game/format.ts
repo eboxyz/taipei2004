@@ -45,6 +45,11 @@ export function formatMoney(n: number, fmt: NumberFormat = 'cjk'): string {
   return 'NT$' + formatNumber(n, fmt);
 }
 
+/** A multiplier: ×1.25, ×12.5, ×3,200. */
+export function formatMult(x: number): string {
+  return '×' + (x >= 100 ? Math.round(x).toLocaleString('en-US') : trim(x));
+}
+
 export function formatDuration(seconds: number): string {
   const s = Math.max(0, Math.round(seconds));
   const h = Math.floor(s / 3600);

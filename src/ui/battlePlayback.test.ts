@@ -7,11 +7,11 @@ import { createBattlePlayback } from './battlePlayback';
 const input = () => battleInputFor(initialState(0), 'wanhua_lt1', 'day');
 
 describe('battle playback without focus', () => {
-  it('advances eight simulated seconds per real second at the default speed', () => {
+  it('advances two simulated seconds per real second at the default speed', () => {
     const battle = createBattle(input(), 42, true);
     const advance = createBattlePlayback(battle, 1000);
     advance(2000, initialState(0).settings.battleSpeed);
-    expect(battle.t).toBeCloseTo(8);
+    expect(battle.t).toBeCloseTo(2);
   });
 
   it('produces the same result with regular frames or one background catch-up', () => {
@@ -42,9 +42,10 @@ describe('battle playback without focus', () => {
 
   it('migrates old defaults once and preserves a later deliberate slower setting', () => {
     const fresh = initialState(0);
-    expect(fresh.settings.battleSpeed).toBe(8);
-    const old = { ...fresh, version: 5, settings: { ...fresh.settings, battleSpeed: 1 } };
-    expect(migrate(old, 0)!.settings.battleSpeed).toBe(8);
+    expect(fresh.settings.battleSpeed).toBe(2);
+    const old = { ...fresh, version: 6, settings: { ...fresh.settings, battleSpeed: 8 } };
+    expect(migrate(old, 0)!.settings.battleSpeed).toBe(2);
     expect(migrate({ ...fresh, settings: { ...fresh.settings, battleSpeed: 1 } }, 0)!.settings.battleSpeed).toBe(1);
+    expect(migrate({ ...fresh, settings: { ...fresh.settings, battleSpeed: 8 } }, 0)!.settings.battleSpeed).toBe(8);
   });
 });

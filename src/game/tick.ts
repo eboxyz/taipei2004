@@ -14,6 +14,7 @@ import {
 } from './constants';
 import { incomePerSec, lotIncome, netWorth, safeCapacity } from './economy';
 import { automate } from './auto';
+import { checkCommissions } from './commissions';
 import { tickEvents } from './events';
 import type { GameEvent, GameState } from './types';
 
@@ -106,7 +107,7 @@ export function tick(state: GameState, dt: number, now: number, rng: Rng = Math.
   const income = incomePerSec(s, phaseAt(now)) * dt;
   s = addIncome(s, income, s.run.accountant);
 
-  s = tickEvents(s, dt, rng);
+  s = tickEvents(s, dt, rng, now);
   const auto = automate(s);
   s = auto.state;
   events.push(...auto.events);
@@ -122,6 +123,10 @@ export function tick(state: GameState, dt: number, now: number, rng: Rng = Math.
     events.push(...r.events);
     shakedownIn = nextShakedownDelay(rng);
   }
+
+  const done = checkCommissions(s, now);
+  s = done.state;
+  events.push(...done.events);
 
   const worth = netWorth(s);
   s = { ...s, shakedownIn, lastSeen: now, bestNetWorth: Math.max(s.bestNetWorth, worth) };

@@ -1,4 +1,8 @@
-/** Face upgrade levels and the numbers they change. Kept separate so economy, battle and draws can all use it. */
+/**
+ * Face upgrade levels and the numbers they change. Kept separate so economy, battle and draws can all use it.
+ * Where this run's headline changes the same number (index growth, event rate), it's folded in here.
+ */
+import { news } from './headlines';
 import type { GameState } from './types';
 
 export function faceLevel(state: GameState, id: string): number {
@@ -20,8 +24,8 @@ export const perk = {
   ultCharge: (s: GameState) => 0.15 * faceLevel(s, 'command'),
   homeTurf: (s: GameState) => 0.03 + 0.02 * faceLevel(s, 'home_turf'),
   warmUp: (s: GameState) => 0.15 * faceLevel(s, 'warm_up'),
-  eventRate: (s: GameState) => 1 + 0.25 * faceLevel(s, 'events'),
+  eventRate: (s: GameState) => (1 + 0.25 * faceLevel(s, 'events')) * news.eventRate(s),
   scratchLuck: (s: GameState) => faceLevel(s, 'scratch_luck'),
   incenseMult: (s: GameState) => 1 + 0.5 * faceLevel(s, 'incense'),
-  indexMult: (s: GameState) => 1 + 0.25 * faceLevel(s, 'index'),
+  indexMult: (s: GameState) => (1 + 0.25 * faceLevel(s, 'index')) * news.indexMult(s),
 };

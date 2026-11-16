@@ -68,7 +68,8 @@ describe('cash-out and Face', () => {
   });
 
   it('Face comes from net worth, claims and underdog wins', () => {
-    const s = { ...initialState(NOW), bestNetWorth: 100 * FACE_DIVISOR, run: { accountant: false, claims: 2, underdog: 1 } };
+    const base = initialState(NOW);
+    const s = { ...base, bestNetWorth: 100 * FACE_DIVISOR, run: { ...base.run, claims: 2, underdog: 1 } };
     const p = cashOutPreview(s);
     expect(p.fromWorth).toBe(10);
     expect(p.face).toBe(10 + 4 + 1);

@@ -67,6 +67,8 @@ export interface Unit {
   weak: number;
   dr: number;
   drAmt: number;
+  /** Battle time of this unit's last knockout, for the after-fight report. */
+  koAt?: number;
   buff: number;
   buffAmt: number;
   haste: number;
@@ -326,6 +328,7 @@ function pickTarget(b: Battle, u: Unit): Unit | null {
 }
 
 function ko(b: Battle, u: Unit) {
+  u.koAt = b.t;
   u.alive = false;
   u.hp = 0;
   u.shield = 0;

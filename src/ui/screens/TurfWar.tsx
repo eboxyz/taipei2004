@@ -1,5 +1,7 @@
 import { useEffect, useReducer, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
+import { battleReport, ODDS_RUNS, ODDS_TEXT, oddsWord, type OddsWord } from '../../game/report';
+import { useWinRate } from '../odds';
 import { createBattle, fire, type Battle, type BattleEvent, type BattleInput, type Unit } from '../../game/battle';
 import { classOf } from '../../game/characters';
 import { phaseAt, secondsToNextPhase } from '../../game/clock';
@@ -7,9 +9,10 @@ import { ALL_LOTS, AREAS, AREA_ORDER, FACTIONS } from '../../game/content/areas'
 import { Fireworks } from '../components/Ceremony';
 import { CHARACTERS } from '../../game/content/characters';
 import { FIGHTS, type FightDef } from '../../game/content/fights';
-import { QUICK_CLAIM_RATIO, SHARE_BONUS_PER_STEP } from '../../game/constants';
+import { QUICK_CLAIM_RATIO, REARMED_FACE_PER_WIN, REARMED_STRENGTH, SHARE_BONUS_PER_STEP } from '../../game/constants';
 import { marketShare } from '../../game/economy';
 import { formatPercent } from '../../game/format';
+import { headlineIs } from '../../game/headlines';
 import {
   battleInputFor,
   buildTheirSide,
@@ -36,7 +39,7 @@ import { gameNow } from '../time';
 type Stage =
   | { kind: 'prep' }
   | { kind: 'battle'; input: BattleInput; seed: number; phase: Phase; power: number }
-  | { kind: 'result'; result: FightResult; hints: string[] };
+  | { kind: 'result'; result: FightResult; report: string; hints: string[] };
 
 const SLOT_NAMES = ['', '4th army slot', '5th army slot', 'Lieutenant commander slot', 'Boss commander slot'];
 
@@ -50,9 +53,9 @@ function lossHints(s: GameState, fight: FightDef, phase: Phase, power: number): 
   const mins = Math.ceil(secondsToNextPhase(gameNow()) / 60);
   if (phase === 'day' && gangsters > agents) hints.push(`Night falls in ${mins} min. Gangsters hit 20% harder at night.`);
   if (phase === 'night' && agents > gangsters) hints.push(`Dawn is ${mins} min away. Agents are 20% stronger by day.`);
-  if (power < recommendedPower(fight))
+  if (power < recommendedPower(fight, s))
     hints.push(
-      `Your power is under the recommended ${recommendedPower(fight)}. Crew level up by guarding and managing lots and from every fight, and each 5% of market share above the line adds ${Math.round(SHARE_BONUS_PER_STEP * 100)}%.`,
+      `Your power is under the recommended ${recommendedPower(fight, s)}. Crew level up by guarding and managing lots and from every fight, and each 5% of market share above the line adds ${Math.round(SHARE_BONUS_PER_STEP * 100)}%.`,
     );
   hints.push(fight.tip);
   return hints.slice(0, 2);
@@ -64,11 +67,19 @@ function Prep({ fight, phase, onFight, onQuick }: { fight: FightDef; phase: Phas
   const s = useGame();
   useNow(1000);
   const you = buildYourSide(s, fight, phase);
-  const them = buildTheirSide(fight);
-  const rec = recommendedPower(fight);
+  const them = buildTheirSide(fight, s);
+  const rec = recommendedPower(fight, s);
+  const rearmed = headlineIs(s, 'rearmed');
   const ratio = you.power / rec;
-  const verdict = ratio >= 1.1 ? 'strong' : ratio >= 0.95 ? 'even' : 'weak';
   const mins = Math.ceil(secondsToNextPhase(gameNow()) / 60);
+  // Odds from practice runs of this exact squad, now and in the other half of the day.
+  const other: Phase = phase === 'day' ? 'night' : 'day';
+  const rateNow = useWinRate(you.specs.length ? battleInputFor(s, fight.id, phase) : null);
+  const rateOther = useWinRate(you.specs.length ? battleInputFor(s, fight.id, other) : null);
+  const odds = rateNow === null ? null : oddsWord(rateNow);
+  const rank: Record<OddsWord, number> = { long: 0, even: 1, likely: 2 };
+  const betterLater = odds !== null && rateOther !== null && rank[oddsWord(rateOther)] > rank[odds];
+  const verdict = odds === 'likely' ? 'strong' : odds === 'long' ? 'weak' : 'even';
   const quick = !isFirstWin(s, fight) || ratio >= QUICK_CLAIM_RATIO;
   const canQuick = ratio >= QUICK_CLAIM_RATIO;
   const empty = you.specs.length === 0;
@@ -99,6 +110,12 @@ function Prep({ fight, phase, onFight, onQuick }: { fight: FightDef; phase: Phas
                   : ' · rematches pay XP and a scratch card'
                 : ''}
             </p>
+            {rearmed && (
+              <p className="rival-rearmed">
+                <b className="zh">重整旗鼓</b> Rearmed this year: {Math.round((REARMED_STRENGTH - 1) * 100)}% stronger.
+                {!rematch && ` A first win pays double incense and +${REARMED_FACE_PER_WIN} Face at cash-out.`}
+              </p>
+            )}
           </div>
         </section>
 
@@ -118,8 +135,20 @@ function Prep({ fight, phase, onFight, onQuick }: { fight: FightDef; phase: Phas
             <i style={{ width: `${Math.min(100, (you.power / (rec * 1.5)) * 100)}%` }} />
             <span style={{ left: `${(1 / 1.5) * 100}%` }} />
           </div>
-          <p className="power-verdict">
-            {verdict === 'strong' ? 'Your power looks strong. Skills and matchups still affect the outcome.' : verdict === 'even' ? 'Power looks close. Check the rival’s trick and suggested squad below.' : 'Tough fight. You can still try: losing costs nothing.'}
+          <p className="power-verdict" aria-live="polite">
+            {odds === null ? (
+              'Checking the odds…'
+            ) : (
+              <>
+                <b className="odds-word">{ODDS_TEXT[odds]}.</b>{' '}
+                {betterLater
+                  ? `${ODDS_TEXT[oddsWord(rateOther!)]} ${other === 'night' ? 'at night' : 'by day'}, in ${mins} min.`
+                  : odds === 'long'
+                    ? 'You can still try: losing costs nothing.'
+                    : ''}
+                <small className="odds-note">From {ODDS_RUNS} practice runs of this exact squad.</small>
+              </>
+            )}
           </p>
           <ul className="mods">
             {you.mods.map((m) => (
@@ -193,7 +222,7 @@ interface Impact {
 const ULT_PAUSE_MS = 1300;
 const END_PAUSE_MS = 1600;
 
-function BattleScreen({ input, seed, fight, onEnd }: { input: BattleInput; seed: number; fight: FightDef; onEnd: (outcome: 'win' | 'lose') => void }) {
+function BattleScreen({ input, seed, fight, onEnd }: { input: BattleInput; seed: number; fight: FightDef; onEnd: (outcome: 'win' | 'lose', battle: Battle) => void }) {
   const s = useGame();
   const auto = s.settings.battleAuto;
   const speed = s.settings.battleSpeed;
@@ -297,7 +326,7 @@ function BattleScreen({ input, seed, fight, onEnd }: { input: BattleInput; seed:
       if (impact.current && now - impact.current.born > (ended.current !== null ? END_PAUSE_MS / speedRef.current + 400 : 700)) impact.current = null;
       if (bt.outcome && ended.current !== null && (document.hidden || now - ended.current >= END_PAUSE_MS / speedRef.current)) {
         delivered = true;
-        onEndRef.current(bt.outcome);
+        onEndRef.current(bt.outcome, bt);
         return;
       }
       if (!document.hidden) redraw();
@@ -446,7 +475,7 @@ function BattleUnit({ u, now, anim, floats, manual, onTap }: { u: Unit; now: num
 
 /* ---------- Results ---------- */
 
-function Results({ fight, result, hints, onAgain, onClose }: { fight: FightDef; result: FightResult; hints: string[]; onAgain: () => void; onClose: () => void }) {
+function Results({ fight, result, report, hints, onAgain, onClose }: { fight: FightDef; result: FightResult; report: string; hints: string[]; onAgain: () => void; onClose: () => void }) {
   const win = result.outcome === 'win';
   const [show, setShow] = useState(!!result.fireworks);
   const leader = CHARACTERS[fight.leader]!;
@@ -481,6 +510,7 @@ function Results({ fight, result, hints, onAgain, onClose }: { fight: FightDef; 
         {win ? (result.first ? `${leader.name} backs down!` : 'Rematch won') : 'They held out.'}
       </h2>
       {!win && <p className="result-sub">Nothing lost. Your crew learned something.</p>}
+      <p className="result-report">{report}</p>
       {joined && (
         <div className="join">
           <div className="card" data-rarity={joined.rarity}>
@@ -520,7 +550,7 @@ function Results({ fight, result, hints, onAgain, onClose }: { fight: FightDef; 
           </button>
         )}
         <button className={`btn ${win ? '' : 'secondary'}`} onClick={onClose}>
-          {win ? 'Continue' : 'Back to Wanhua'}
+          {win ? 'Continue' : `Back to ${AREAS[fight.area].name}`}
         </button>
       </div>
     </div>
@@ -548,14 +578,15 @@ export function TurfWar({ fightId, onClose }: { fightId: string; onClose: () => 
       power: buildYourSide(st, fight, phase).power,
     });
   };
-  const finish = (outcome: 'win' | 'lose', fightPhase: Phase, power: number) => {
+  const finish = (outcome: 'win' | 'lose', fightPhase: Phase, power: number, battle?: Battle) => {
     const before = store.get();
     const { state, result } = resolveFight(before, fightId, outcome, gameNow());
     const lineup = JSON.stringify(effectiveSquad(before));
     const matchingFills = (['offense', 'defense', 'balanced'] as const).filter((style) => JSON.stringify(effectiveSquad(fillSquad(before, style))) === lineup);
-    track('battle_finished', { rival: fightId, outcome, phase: fightPhase, power_ratio: power / recommendedPower(fight), first_win: result.first, playback_seconds: startedAt.current === null ? 0 : Math.round((performance.now() - startedAt.current) / 1000), matching_fills: matchingFills.join(',') || 'custom' });
+    track('battle_finished', { rival: fightId, outcome, phase: fightPhase, power_ratio: power / recommendedPower(fight, store.get()), first_win: result.first, playback_seconds: startedAt.current === null ? 0 : Math.round((performance.now() - startedAt.current) / 1000), matching_fills: matchingFills.join(',') || 'custom' });
     update(() => state);
-    setStage({ kind: 'result', result, hints: outcome === 'lose' ? lossHints(before, fight, fightPhase, power) : [] });
+    const report = battle ? battleReport(battle) : 'Quick win: your squad was strong enough to skip the fight.';
+    setStage({ kind: 'result', result, report, hints: outcome === 'lose' ? lossHints(before, fight, fightPhase, power) : [] });
     navigator.vibrate?.(outcome === 'win' ? [20, 40, 60] : 30);
   };
 
@@ -576,9 +607,9 @@ export function TurfWar({ fightId, onClose }: { fightId: string; onClose: () => 
         <Prep fight={fight} phase={phase} onFight={start} onQuick={() => { startedAt.current = null; finish('win', phase, buildYourSide(store.get(), fight, phase).power); }} />
       )}
       {stage.kind === 'battle' && (
-        <BattleScreen input={stage.input} seed={stage.seed} fight={fight} onEnd={(o) => finish(o, stage.phase, stage.power)} />
+        <BattleScreen input={stage.input} seed={stage.seed} fight={fight} onEnd={(o, b) => finish(o, stage.phase, stage.power, b)} />
       )}
-      {stage.kind === 'result' && <Results fight={fight} result={stage.result} hints={stage.hints} onAgain={() => setStage({ kind: 'prep' })} onClose={onClose} />}
+      {stage.kind === 'result' && <Results fight={fight} result={stage.result} report={stage.report} hints={stage.hints} onAgain={() => setStage({ kind: 'prep' })} onClose={onClose} />}
     </div>,
     host,
   );

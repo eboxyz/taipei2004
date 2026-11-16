@@ -13,6 +13,7 @@ import { SquadBoard } from '../components/Squad';
 import { auraOf } from '../../game/battle';
 import { AURA_TEXT, skillOf } from '../../game/content/skills';
 import { useGame } from '../store';
+import { PostsView } from './PostsView';
 
 const RANK_LABEL = { crew: 'Crew', lieutenant: 'Lieutenant-class', boss: 'Boss-class' } as const;
 const COLLECTIBLE = Object.values(CHARACTERS).filter((c) => c.rarity !== 'NPC').length;
@@ -165,6 +166,7 @@ function Missing({ def }: { def: CharacterDef }) {
 export function CrewScreen() {
   const s = useGame();
   const [open, setOpen] = useState<string | null>(null);
+  const [view, setView] = useState<'cards' | 'posts'>('cards');
   const unique = uniqueCards(s);
   const steps = Math.floor(unique / BINDER_STEP);
   const nextAt = (steps + 1) * BINDER_STEP;
@@ -175,6 +177,28 @@ export function CrewScreen() {
           <h1>CREW</h1>
           <span className="zh">名片簿</span>
         </div>
+        <div className="seg crew-view" role="group" aria-label="Crew view">
+          <button aria-pressed={view === 'cards'} onClick={() => setView('cards')}>
+            Cards
+          </button>
+          <button aria-pressed={view === 'posts'} onClick={() => setView('posts')}>
+            Posts
+          </button>
+        </div>
+        {view === 'posts' && <PostsView />}
+      </div>
+      {view === 'cards' && (
+        <CardsView open={open} setOpen={setOpen} unique={unique} steps={steps} nextAt={nextAt} />
+      )}
+    </div>
+  );
+}
+
+function CardsView({ open, setOpen, unique, steps, nextAt }: { open: string | null; setOpen: (id: string | null) => void; unique: number; steps: number; nextAt: number }) {
+  const s = useGame();
+  return (
+    <div>
+      <div className="page" style={{ paddingBottom: 0, paddingTop: 0 }}>
         <SquadBoard />
         <div className="panel binder-summary" style={{ marginBottom: 0 }}>
           <h2>Your binder</h2>

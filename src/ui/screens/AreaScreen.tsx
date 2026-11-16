@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { assignStaff, buyLot, upgradeLot } from '../../game/actions';
 import { ALL_LOTS, AREAS, FACTIONS } from '../../game/content/areas';
 import { CATEGORIES } from '../../game/content/categories';
-import { CHARACTERS, MANAGER_PERKS, ROLES } from '../../game/content/characters';
+import { CHARACTERS, ROLES } from '../../game/content/characters';
 import { classOf, statsOf } from '../../game/characters';
 import { gameHour, phaseAt } from '../../game/clock';
 import { perk } from '../../game/perks';
@@ -15,13 +15,13 @@ import {
   lotIncome,
   marketShare,
   nextMilestone,
-  postOf,
   upgradeCost,
   upgradeCostN,
   upgradeCountFor,
 } from '../../game/economy';
-import { formatPercent } from '../../game/format';
-import type { AreaId, BuyMode, FightKey, LotDef, Phase } from '../../game/types';
+import { formatMoney, formatPercent } from '../../game/format';
+import { lotsLeftToBuy, slotAdvice } from '../../game/staffing';
+import type { AreaId, BuyMode, FightKey, GameState, LotDef, Phase } from '../../game/types';
 import { artUrl } from '../art';
 import { LedIcon, Money, PhaseTag, Portrait, Sheet, useHoldRepeat } from '../components/bits';
 import { act, update } from '../engine';
@@ -287,50 +287,87 @@ function LotCard({ lot, mode, phase, onOpen, onMilestone }: { lot: LotDef; mode:
   );
 }
 
+/** A Manager's role perk, said for this lot specifically. */
+function perkNote(s: GameState, lot: LotDef, charId: string): string | null {
+  const role = CHARACTERS[charId]?.role;
+  const area = AREAS[lot.area].name;
+  if (role === 'dianzhang') return '+25% extra income here';
+  if (role === 'daishu') return 'Upgrades on this lot 10% cheaper';
+  if (role === 'kuaiji') return 'Safe holds 1 more hour, on any lot';
+  if (role === 'fangzhong') {
+    const left = lotsLeftToBuy(s, lot.area);
+    return left > 0 ? `Lots in ${area} 5% cheaper (${left} left to buy)` : `Nothing left to buy in ${area}, so no discount`;
+  }
+  return null;
+}
+
 function StaffPicker({ lot, slot }: { lot: LotDef; slot: 'manager' | 'security' }) {
   const s = useGame();
-  const ls = s.lots[lot.id]!;
-  const current = ls[slot];
+  const fmt = (n: number) => formatMoney(n, s.settings.numberFormat);
   const need = slot === 'manager' ? 'agent' : 'gangster';
-  const crew = Object.keys(s.characters).filter((id) => classOf(id) === need);
+  if (!Object.keys(s.characters).some((id) => classOf(id) === need))
+    return <p className="empty-note">No {need === 'agent' ? 'agents' : 'gangsters'} in your crew yet.</p>;
+  const { options, tip } = slotAdvice(s, lot.id, slot, fmt);
   const threat = AREAS[lot.area].threat;
-  if (crew.length === 0) return <p className="empty-note">No {need === 'agent' ? 'agents' : 'gangsters'} in your crew yet.</p>;
+  const occupant = options.find((o) => o.current);
   return (
-    <div className="pick-list">
-      {crew.map((id) => {
-        const def = CHARACTERS[id]!;
-        const st = statsOf(id, s.characters[id]);
-        const post = postOf(s, id);
-        const here = current === id;
-        const elsewhere = post && !here ? `Posted at ${ALL_LOTS[post.lotId]?.name ?? post.lotId}` : null;
-        const what =
-          slot === 'manager'
-            ? `+${st.business}% income${def.role && MANAGER_PERKS[def.role] ? ` · ${MANAGER_PERKS[def.role]}` : ''}`
-            : st.muscle >= threat
-              ? `Strong enough for ${AREAS[lot.area].name} shakedowns`
-              : `Needs Muscle ${threat} to win shakedown bonuses`;
-        return (
-          <button key={id} className="pick" aria-pressed={here} onClick={() => act((st2) => assignStaff(st2, lot.id, slot, here ? null : id))}>
-            <Portrait id={id} face />
-            <span>
-              <span className="who">
-                {def.name} <span className="zh">{def.nameZh}</span>
+    <>
+      <p className="staff-tip">
+        <b>Tip</b> {tip}
+      </p>
+      <div className="pick-list">
+        {options.map((o) => {
+          const def = CHARACTERS[o.charId]!;
+          const st = statsOf(o.charId, s.characters[o.charId]);
+          const from = o.leaves ? ALL_LOTS[o.leaves]?.name ?? o.leaves : null;
+          let value: string;
+          let detail: string[];
+          if (slot === 'manager') {
+            value = o.current ? 'Here now' : `${o.net >= 0 ? '+' : '−'}${fmt(Math.abs(o.net))}/s`;
+            // Spell out the whole trade, so the net number on the right adds up.
+            detail = o.current
+              ? [`Adds ${fmt(o.gainHere)}/s here`]
+              : [
+                  `+${fmt(o.gainHere)}/s here${occupant ? ` instead of ${CHARACTERS[occupant.charId]?.name}'s +${fmt(occupant.gainHere)}/s` : ''}`,
+                  ...(from ? [`−${fmt(o.lossThere)}/s at ${from}`] : []),
+                ];
+            const note = perkNote(s, lot, o.charId);
+            if (note) detail.push(note);
+          } else {
+            value = `M${st.muscle}`;
+            detail = [o.strong ? `Strong enough (needs ${threat})` : `Too weak (needs ${threat})`];
+            if (from) detail.push(o.leavesUnguarded ? `Would leave ${from} unguarded` : `Guarding ${from}`);
+            if (o.current) detail.unshift('Here now');
+          }
+          return (
+            <button
+              key={o.charId}
+              className="pick"
+              aria-pressed={o.current}
+              data-worse={slot === 'manager' && !o.current && o.net < 0}
+              onClick={() => act((st2) => assignStaff(st2, lot.id, slot, o.current ? null : o.charId))}
+            >
+              <Portrait id={o.charId} face />
+              <span>
+                <span className="who">
+                  {def.name} <span className="zh">{def.nameZh}</span>
+                  {o.best && <span className="best-fit">Best fit</span>}
+                </span>
+                <br />
+                <span className="what">
+                  {[def.role ? ROLES[def.role].name : '', ...detail].filter(Boolean).join(' · ')}
+                </span>
               </span>
-              <br />
-              <span className="what">
-                {def.role ? ROLES[def.role].name : ''} · {what}
-                {elsewhere ? ` · ${elsewhere}` : ''}
-              </span>
-            </span>
-            <span className="num">{slot === 'manager' ? `B${st.business}` : `M${st.muscle}`}</span>
-          </button>
-        );
-      })}
-    </div>
+              <span className="num">{value}</span>
+            </button>
+          );
+        })}
+      </div>
+    </>
   );
 }
 
-function LotSheet({ lotId, onClose }: { lotId: string; onClose: () => void }) {
+export function LotSheet({ lotId, onClose }: { lotId: string; onClose: () => void }) {
   const s = useGame();
   const now = useNow(1000);
   const phase = phaseAt(now);

@@ -53,7 +53,53 @@
     "xiaoxiao",
     "yuejian"
   ],
-  "key": [],
-  "lots": [],
-  "events": []
+  "key": [
+    "cash_out",
+    "fireworks",
+    "title"
+  ],
+  "map": [
+    "airplane",
+    "betel_nut_stand",
+    "campus_palms",
+    "dragon_boat",
+    "elephant_mountain",
+    "garbage_truck",
+    "night_market",
+    "palace_hotel",
+    "red_house",
+    "scooters",
+    "street_cat",
+    "tiaotong_lanterns"
+  ],
+  "lots": [
+    "arcade",
+    "boutique",
+    "business_hotel",
+    "cafe",
+    "clothing_stall",
+    "comic_rental",
+    "department_store",
+    "food_stall",
+    "herbal_shop",
+    "internet_cafe",
+    "izakaya",
+    "ktv",
+    "lounge",
+    "luxury_condo",
+    "nightclub",
+    "office_tower",
+    "old_inn",
+    "tattoo_parlor",
+    "tea_house",
+    "xiaoxiao_branch"
+  ],
+  "events": [
+    "hot_trend",
+    "news",
+    "procession",
+    "recruit",
+    "scratch",
+    "tip"
+  ]
 }

@@ -9,21 +9,75 @@ import { claimEvent, EVENT_INFO, type EventReward } from '../../game/events';
 import { formatMoney } from '../../game/format';
 import { update } from '../engine';
 import { gameNow } from '../time';
+import { artUrl } from '../art';
 
 interface Node {
   id: AreaId;
   x: number;
   y: number;
   label: 'above' | 'below' | 'right';
+  /** Horizontal shift of an above/below label, to leave room for the event bubble. */
+  labelDx?: number;
+  /** Where this station's street-event bubble sits: clear of labels, lines and the map edge. */
+  bubble: [number, number];
 }
 
+// Longshan Temple really is southwest of Ximen, so the blue line bends down-left to reach Wanhua.
 const NODES: Node[] = [
-  { id: 'wanhua', x: 66, y: 250, label: 'below' },
-  { id: 'ximending', x: 128, y: 250, label: 'above' },
-  { id: 'zhongshan', x: 190, y: 140, label: 'right' },
-  { id: 'east', x: 290, y: 250, label: 'below' },
-  { id: 'xinyi', x: 356, y: 250, label: 'below' },
+  { id: 'wanhua', x: 48, y: 292, label: 'right', bubble: [46, 244] },
+  { id: 'ximending', x: 118, y: 250, label: 'above', labelDx: -18, bubble: [168, 206] },
+  { id: 'zhongshan', x: 190, y: 116, label: 'right', bubble: [146, 96] },
+  { id: 'east', x: 278, y: 250, label: 'above', labelDx: -24, bubble: [276, 298] },
+  { id: 'xinyi', x: 356, y: 250, label: 'below', bubble: [320, 204] },
 ];
+
+/** Codex map stickers in the empty corners: center and the box they fit inside. Missing art is skipped. */
+const DECOR: { id: string; x: number; y: number; w: number; h: number }[] = [
+  { id: 'palace_hotel', x: 82, y: 42, w: 64, h: 56 },
+  { id: 'airplane', x: 282, y: 40, w: 76, h: 46 },
+  { id: 'dragon_boat', x: 20, y: 150, w: 30, h: 56 },
+  { id: 'street_cat', x: 80, y: 150, w: 44, h: 46 },
+  { id: 'tiaotong_lanterns', x: 236, y: 162, w: 44, h: 48 },
+  { id: 'red_house', x: 160, y: 314, w: 38, h: 38 },
+  { id: 'night_market', x: 100, y: 352, w: 58, h: 49 },
+  { id: 'betel_nut_stand', x: 225, y: 330, w: 40, h: 42 },
+  { id: 'scooters', x: 124, y: 408, w: 48, h: 43 },
+  { id: 'campus_palms', x: 262, y: 422, w: 40, h: 41 },
+  { id: 'elephant_mountain', x: 352, y: 360, w: 60, h: 60 },
+  { id: 'garbage_truck', x: 36, y: 438, w: 58, h: 40 },
+];
+
+/** A speech-bubble tail on a circle of radius r at (bx, by), pointing at (sx, sy). */
+function bubbleTail(bx: number, by: number, r: number, sx: number, sy: number): string {
+  const len = Math.hypot(sx - bx, sy - by) || 1;
+  const ux = (sx - bx) / len;
+  const uy = (sy - by) / len;
+  const base = (side: number) => `${bx + ux * (r - 2) - uy * 5 * side} ${by + uy * (r - 2) + ux * 5 * side}`;
+  return `M${base(1)} L${bx + ux * (r + 9)} ${by + uy * (r + 9)} L${base(-1)} Z`;
+}
+
+/** Relative luminance of a #rrggbb color (WCAG). */
+function luminance(hex: string): number {
+  const ch = (i: number) => {
+    const c = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * ch(1) + 0.7152 * ch(3) + 0.0722 * ch(5);
+}
+
+function contrast(a: string, b: string): number {
+  const la = luminance(a);
+  const lb = luminance(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+/** Station-sign tag colors: the gang's main color, with whichever text color reads best on it. */
+function tagColors([bg, accent]: [string, string]): { bg: string; fg: string } {
+  const ink = '#1e1b2e';
+  if (contrast(bg, ink) > contrast(bg, '#ffffff')) return { bg, fg: ink };
+  // On dark tags, use the gang's accent color when it's readable (Molong's green, Yuejian's silver).
+  return { bg, fg: contrast(bg, accent) >= 4.5 ? accent : '#ffffff' };
+}
 
 /** Taipei 101 progress: floors built, driven by the price index. Only claiming Xinyi tops it out. */
 export function towerFloors(s: GameState): number {
@@ -84,6 +138,8 @@ export function MapScreen({ onOpenArea, onLocked }: { onOpenArea: (id: AreaId) =
   const night = phase === 'night';
   const ink = night ? '#f6f2ff' : '#1e1b2e';
   const sub = night ? 'rgba(246,242,255,0.6)' : 'rgba(30,27,46,0.6)';
+  // A halo in the map's own background color keeps labels readable where they cross lines and rivers.
+  const halo = { stroke: night ? '#1a1240' : '#f1ead9', strokeWidth: 3.5, strokeLinejoin: 'round' as const, paintOrder: 'stroke' };
   const floors = towerFloors(s);
 
   const ticker = [
@@ -153,8 +209,8 @@ export function MapScreen({ onOpenArea, onLocked }: { onOpenArea: (id: AreaId) =
               ?
             </text>
 
-            {/* Bannan line (blue), west to east */}
-            <path d="M 0 250 L 400 250" stroke="#0070BD" strokeWidth="9" strokeLinecap="round" />
+            {/* Bannan line (blue), west to east, bending southwest past Ximen to Longshan Temple */}
+            <path d="M -10 350 L 48 292 L 90 250 L 410 250" stroke="#0070BD" strokeWidth="9" strokeLinecap="round" strokeLinejoin="round" fill="none" />
 
             {/* Taipei Main junction */}
             <rect x="180" y="240" width="20" height="20" rx="6" fill={night ? '#1a1240' : '#fff'} stroke={ink} strokeWidth="3" />
@@ -165,34 +221,13 @@ export function MapScreen({ onOpenArea, onLocked }: { onOpenArea: (id: AreaId) =
             {/* Taipei 101 rising over Xinyi */}
             <Tower x={356} baseY={226} floors={floors} night={night} />
 
-            {/* Street event */}
-            {s.event &&
-              (() => {
-                const n = NODES.find((x) => x.id === s.event!.area);
-                if (!n) return null;
-                const info = EVENT_INFO[s.event.kind];
-                const ex = n.x + (n.label === 'right' ? -30 : 24);
-                const ey = n.y - 34;
-                return (
-                  <g
-                    className="event-btn"
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`${info.name} at ${AREAS[n.id].name}. Tap to take it.`}
-                    onClick={takeEvent}
-                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && takeEvent()}
-                  >
-                    <circle cx={ex} cy={ey} r="22" fill="transparent" />
-                    <circle cx={ex} cy={ey} r="15" fill={s.event.xiaoxiao ? '#FFD34D' : '#FF3EA5'} stroke={ink} strokeWidth="3">
-                      <animate attributeName="r" values="14;17;14" dur="1.2s" repeatCount="indefinite" />
-                    </circle>
-                    <text x={ex} y={ey + 6} textAnchor="middle" fontSize="16" fontWeight="900" fill="#1e1b2e" fontFamily="'Noto Serif TC', serif">
-                      {s.event.xiaoxiao ? '笑' : info.glyph}
-                    </text>
-                    <path d={`M${ex - 4} ${ey + 14} L${ex} ${ey + 22} L${ex + 4} ${ey + 14}`} fill={ink} />
-                  </g>
-                );
-              })()}
+            {/* Decorations: stickers in the empty corners, under the stations and never tappable */}
+            <g className="decor" aria-hidden>
+              {DECOR.map((d) => {
+                const url = artUrl('map', d.id);
+                return url ? <image key={d.id} href={url} x={d.x - d.w / 2} y={d.y - d.h / 2} width={d.w} height={d.h} /> : null;
+              })}
+            </g>
 
             {/* Area stations */}
             {NODES.map((n) => {
@@ -200,9 +235,15 @@ export function MapScreen({ onOpenArea, onLocked }: { onOpenArea: (id: AreaId) =
               const open = isAreaOpen(s, n.id);
               const share = marketShare(s, n.id);
               const color = FACTIONS[area.rival].colors[0];
-              const lx = n.label === 'right' ? n.x + 24 : n.x;
-              const ly = n.label === 'above' ? n.y - 44 : n.label === 'below' ? n.y + 36 : n.y - 6;
+              const lx = n.label === 'right' ? n.x + 24 : n.x + (n.labelDx ?? 0);
+              const ly = n.label === 'above' ? n.y - 46 : n.label === 'below' ? n.y + 34 : n.y - 6;
               const anchor = n.label === 'right' ? 'start' : 'middle';
+              // Chinese name on a station-sign tag, then the market share. CJK glyphs are 1em wide.
+              const tag = open ? tagColors(FACTIONS[area.rival].colors) : { bg: night ? '#2c2360' : '#e2dac8', fg: sub };
+              const pct = open ? formatPercent(share) : '';
+              const tagW = area.nameZh.length * 12 + 10;
+              const pctW = pct ? pct.length * 7.4 + 5 : 0;
+              const tx = anchor === 'middle' ? lx - (tagW + pctW) / 2 : lx;
               return (
                 <g
                   key={n.id}
@@ -229,16 +270,64 @@ export function MapScreen({ onOpenArea, onLocked }: { onOpenArea: (id: AreaId) =
                       <path d="M2 5V3.5a3 3 0 0 1 6 0V5" fill="none" stroke={ink} strokeWidth="1.6" />
                     </g>
                   )}
-                  <text x={lx} y={ly} textAnchor={anchor} fontSize="13" fontWeight="900" fill={open ? ink : sub} fontFamily="Inter, sans-serif">
+                  <text x={lx} y={ly} textAnchor={anchor} fontSize="13" fontWeight="900" fill={open ? ink : sub} fontFamily="Inter, sans-serif" {...halo}>
                     {area.name}
                   </text>
-                  <text x={lx} y={ly + 15} textAnchor={anchor} fontSize="12" fontWeight="900" fill={open ? color : sub} fontFamily="'Noto Sans TC', sans-serif">
+                  <rect x={tx} y={ly + 5} width={tagW} height={18} rx="4" fill={tag.bg} stroke={open ? ink : 'none'} strokeWidth="1.5" />
+                  <text x={tx + tagW / 2} y={ly + 18.5} textAnchor="middle" fontSize="12" fontWeight="900" fill={tag.fg} fontFamily="'Noto Sans TC', sans-serif">
                     {area.nameZh}
-                    {open ? ` · ${formatPercent(share)}` : ''}
                   </text>
+                  {pct && (
+                    <text x={tx + tagW + 5} y={ly + 18.5} fontSize="12" fontWeight="900" fill={ink} fontFamily="Inter, sans-serif" {...halo}>
+                      {pct}
+                    </text>
+                  )}
                 </g>
               );
             })}
+
+            {/* Street event: drawn last so it sits above stations and always wins the tap */}
+            {s.event &&
+              (() => {
+                const n = NODES.find((x) => x.id === s.event!.area);
+                if (!n) return null;
+                const info = EVENT_INFO[s.event.kind];
+                const [ex, ey] = n.bubble;
+                // Xiaoxiao's tips keep the yellow 笑 bubble so they stay recognizable.
+                const icon = s.event.xiaoxiao ? null : artUrl('events', s.event.kind);
+                return (
+                  <g
+                    className="event-btn"
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${info.name} at ${AREAS[n.id].name}. Tap to take it.`}
+                    onClick={takeEvent}
+                    onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && takeEvent()}
+                  >
+                    {/* About 44px on a phone */}
+                    <circle cx={ex} cy={ey} r="27" fill="transparent" />
+                    {icon ? (
+                      <>
+                        <path d={bubbleTail(ex, ey, 19, n.x, n.y)} fill="#FF3EA5" />
+                        <circle cx={ex} cy={ey} r="19" fill="#120C2E" stroke="#FF3EA5" strokeWidth="3">
+                          <animate attributeName="stroke-width" values="3;5.5;3" dur="1.2s" repeatCount="indefinite" />
+                        </circle>
+                        <image href={icon} x={ex - 15} y={ey - 15} width="30" height="30" style={{ imageRendering: 'pixelated' }} />
+                      </>
+                    ) : (
+                      <>
+                        <path d={bubbleTail(ex, ey, 16, n.x, n.y)} fill={ink} />
+                        <circle cx={ex} cy={ey} r="15" fill={s.event.xiaoxiao ? '#FFD34D' : '#FF3EA5'} stroke={ink} strokeWidth="3">
+                          <animate attributeName="r" values="14;17;14" dur="1.2s" repeatCount="indefinite" />
+                        </circle>
+                        <text x={ex} y={ey + 6} textAnchor="middle" fontSize="16" fontWeight="900" fill="#1e1b2e" fontFamily="'Noto Serif TC', serif">
+                          {s.event.xiaoxiao ? '笑' : info.glyph}
+                        </text>
+                      </>
+                    )}
+                  </g>
+                );
+              })()}
           </svg>
         </div>
         <p className="map-hint">

@@ -1,6 +1,6 @@
 import manifest from '../generated/art-manifest.json';
 
-type Category = 'characters' | 'areas' | 'crests' | 'key' | 'lots' | 'events';
+type Category = 'characters' | 'areas' | 'crests' | 'key' | 'lots' | 'events' | 'map';
 
 const sets: Record<string, Set<string>> = Object.fromEntries(
   Object.entries(manifest as Record<string, string[]>).map(([k, v]) => [k, new Set(v)]),

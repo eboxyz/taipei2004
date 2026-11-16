@@ -140,16 +140,20 @@ export function SafeButton() {
       <button className="safe-btn" data-full={full} data-auto={auto} onClick={onTap} aria-label={`Safe ${Math.round(fill * 100)}% full. Tap to collect.`}>
         <svg className="ring" viewBox="0 0 88 88" aria-hidden>
           <circle cx="44" cy="44" r={r} fill="none" stroke="rgba(30,27,46,0.15)" strokeWidth="6" />
-          <circle
-            cx="44"
-            cy="44"
-            r={r}
-            fill="none"
-            stroke={full ? 'var(--red)' : 'var(--orange)'}
-            strokeWidth="6"
-            strokeDasharray={`${circ * fill} ${circ}`}
-            strokeLinecap="round"
-          />
+          {/* The fill gauge. Hidden when the Accountant empties the safe, and when nearly empty,
+              because a tiny arc with round caps looks like a red notification dot. */}
+          {!auto && fill >= 0.03 && (
+            <circle
+              cx="44"
+              cy="44"
+              r={r}
+              fill="none"
+              stroke={full ? 'var(--red)' : 'var(--orange)'}
+              strokeWidth="6"
+              strokeDasharray={`${circ * fill} ${circ}`}
+              strokeLinecap="round"
+            />
+          )}
         </svg>
         <span className="safe-label">
           <b>{auto ? 'AUTO' : 'SAFE'}</b>

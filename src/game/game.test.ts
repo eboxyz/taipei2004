@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { assignStaff, buyLot, collectSafe, upgradeLot } from './actions';
-import { ALL_LOTS } from './content/areas';
+import { ALL_LOTS, AREAS } from './content/areas';
 import { addXp, statsOf, xpToNext } from './characters';
 import { phaseAt } from './clock';
 import { MILESTONES, UPGRADE_GROWTH } from './constants';
@@ -14,7 +14,7 @@ import {
   upgradeCost,
   upgradeCostN,
 } from './economy';
-import { formatNumber } from './format';
+import { formatNumber, formatPercent } from './format';
 import { applyOffline } from './offline';
 import { exportSave, importSave } from './save';
 import { initialState, migrate } from './state';
@@ -87,6 +87,27 @@ describe('buying and income', () => {
     const a = marketShare(s, 'wanhua');
     s = must(upgradeLot(s, 'w1', 20));
     expect(marketShare(s, 'wanhua')).toBeGreaterThan(a);
+  });
+
+  it('reaches exactly 100% once the area is claimed and every buyable lot is yours', () => {
+    let s: GameState = { ...initialState(NOW), cash: 1e40 };
+    s = { ...s, areas: { ...s.areas, wanhua: { lt1: true, lt2: true, boss: false } } };
+    const buyable = AREAS.wanhua.lots.filter((l) => l.lock !== 'xiaoxiao');
+    for (const lot of buyable) s = must(buyLot(s, lot.id));
+    s = must(upgradeLot(s, 'w1', 50));
+    // The gang still holds its base stake, so the share can't be complete yet.
+    expect(marketShare(s, 'wanhua')).toBeLessThan(1);
+    expect(formatPercent(marketShare(s, 'wanhua'))).not.toBe('100%');
+
+    s = { ...s, areas: { ...s.areas, wanhua: { lt1: true, lt2: true, boss: true } } };
+    expect(marketShare(s, 'wanhua')).toBe(1);
+    expect(formatPercent(marketShare(s, 'wanhua'))).toBe('100%');
+
+    // Missing one lot keeps it below 100%, even when the rounding would say otherwise.
+    const { w1: _sold, ...rest } = s.lots;
+    const missing = { ...s, lots: rest };
+    expect(marketShare(missing, 'wanhua')).toBeLessThan(1);
+    expect(formatPercent(marketShare(missing, 'wanhua'))).not.toBe('100%');
   });
 });
 

@@ -48,6 +48,10 @@ The mechanics are inspired by Yakuza 0's real estate minigame. All characters, g
 - **新店** is off the bottom edge. The green line fades out past 公館 until it unlocks, then the map extends south.
 - Drag and pinch to move around. Station labels alternate above and below the line.
 - **On the map:** street-event icons at stations, Xiaoxiao Realty billboards, and an LED-sign news ticker.
+- **Layout:** the blue line bends southwest from Ximen down to Longshan Temple (Wanhua), as it does in real life. Labels sit on alternating sides so they never touch.
+- **Station labels:** the English name sits above a station-sign tag in the rival gang's color with the Chinese name on it, followed by your market share. Map text has a halo in the map's background color.
+- **Decorations:** 12 small illustrated stickers fill the empty corners (a palace hotel, a dragon boat, a garbage truck, scooters and so on). They are made by Codex in `map/`, sit under the stations, can't be tapped, and are darkened at night. A sticker whose art is missing is simply left out.
+- **Street-event bubbles:** each station has a fixed bubble spot clear of labels, lines and the map edge. The tail points at the station, and bubbles draw above the stations so a tap always reaches them.
 
 ### Areas
 
@@ -129,6 +133,12 @@ The mechanics are inspired by Yakuza 0's real estate minigame. All characters, g
   | 會計 | Bigger safe |
 
 - **Security are gangsters.** They repel shakedowns and add to the Home Turf bonus in Turf Wars.
+- **Placement tips (in the assign picker, Map → area → lot):**
+  - **A tip line** about that lot. For managers: its earner rank, and either the best fit or, below your top N lots (N = your agent count), advice to put agents on bigger earners first. For security: the area's Muscle need and the bonus a strong guard wins, or that a claimed area has no more shakedowns.
+  - **Every candidate shows the real trade:** income added here, what the person they replace adds, and what's lost at the lot they'd leave, so the net on the right adds up. Role perks are said for that lot ("Nothing left to buy in Wanhua, so no discount").
+  - **The best guard** is the weakest gangster who still meets the threat, which keeps stronger fighters free for tougher areas.
+- **Crew → Posts:** every lot you own by area, with its Manager and Security portraits. Empty slots and too-weak guards are highlighted, your top N earners are tagged, and free crew are listed at the bottom. Tapping a lot opens the same lot sheet and tips.
+- **No auto-optimize for players.** "Optimize everyone" is a dev tool only.
 
 ### Shakedowns (rewards only)
 Rivals periodically lean on your lots in their area.
@@ -137,6 +147,8 @@ Rivals periodically lean on your lots in their area.
 
 ### Market share and the price index
 - **Market share** = what you've invested ÷ (what you've invested + the rival's stake). The rival's stake is the gang's own base holdings (which include the lieutenant-held lots), plus 1.5× the price of every unlocked lot you don't own yet, including the Xiaoxiao branch. Unlocking a lieutenant's lot never lowers your share.
+  - **After you claim an area,** the gang's stake is gone. Only lots still for sale count (1.5× their price), and the not-for-sale Xiaoxiao branch doesn't. Owning every buyable lot is exactly **100%**.
+  - The display never rounds up to 100%. Anything short of it shows at most 99%.
   - At 25%, 50% and 75% you can fight the first lieutenant, the second lieutenant and the boss.
   - Lieutenants hold some lots locked until you beat them.
 - **Claiming an area:** income in that area doubles, lots you don't own there yet cost 25% less, shakedowns stop there, the price index jumps by 10, and the boss joins your collection.
@@ -399,8 +411,8 @@ Turf Wars launch from an area screen.
 
 | Source | Makes |
 |---|---|
-| **Codex (ChatGPT image generation)** | Style reference sheet, 31 portraits, 5 area banners (day and night), 7 crests, 3 key art. Brief: [`art/BRIEF.md`](../art/BRIEF.md) |
-| **PixelLab (free tier: about 40 generations, then a few per day)** | About 20 lot icons and 6 map-event icons as LED-sign pixel pictograms. Claude runs these after the restart. Prompts: [`art/PIXELLAB.md`](../art/PIXELLAB.md) |
+| **Codex (ChatGPT image generation)** | Style reference sheet, 31 portraits, 5 area banners (day and night), 7 crests, 3 key art, 12 map decorations. Brief: [`art/BRIEF.md`](../art/BRIEF.md) |
+| **PixelLab (free tier: about 40 generations, then a few per day)** | 20 lot icons and 6 map-event icons as LED-sign pixel pictograms (all generated). Prompts and results: [`art/PIXELLAB.md`](../art/PIXELLAB.md) |
 | **Claude (code)** | UI, metro map, card frames and finishes, halftone textures, role/currency/tab icons, draw machines, battle effects, the 101 skyline, the LED news ticker, placeholders, and the art processing script |
 
 ### Rules

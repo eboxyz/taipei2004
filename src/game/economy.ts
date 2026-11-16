@@ -163,11 +163,17 @@ export function isLotLocked(state: GameState, lot: LotDef): boolean {
 }
 
 export function marketShare(state: GameState, area: AreaId): number {
+  // Once the boss is beaten the gang is gone. Only lots still for sale count against you,
+  // so owning every buyable lot in a claimed area is exactly 100%.
+  const claimed = state.areas[area].boss;
   let yours = 0;
-  let rival = AREAS[area].rivalBase;
+  let rival = claimed ? 0 : AREAS[area].rivalBase;
   for (const lot of AREAS[area].lots) {
     const ls = state.lots[lot.id];
     if (ls) yours += ls.invested;
+    else if (claimed) {
+      if (!isLotLocked(state, lot)) rival += lot.price * RIVAL_STAKE;
+    }
     // Lieutenant-held lots are part of the gang's base stake, so unlocking them never drops your share.
     else if (lot.lock !== 'lt1' && lot.lock !== 'lt2') rival += lot.price * RIVAL_STAKE;
   }

@@ -48,3 +48,11 @@
 | news | Megaphone | |
 
 If the budget runs out, the code draws fallback LED pictograms for any icon that hasn't been generated.
+
+## Status (2026-11-15)
+All 26 icons are generated and in `art/source/lots/` and `art/source/events/` (the scratch card becomes `events/scratch.png` through the alias in `scripts/process-art.mjs`). Used 38 of the 40 trial generations.
+- **What worked:** `create_image_pixen` at 32×32 with `no_background`, `detail: low detail`, and prompts that read "<pictogram>, glowing LED shop sign icon, bright <colors> light, solid filled shapes, bold simple silhouette, centered, transparent background, no text". The free plan runs one job at a time.
+- **Fixes in post:** `food_stall` had a black backdrop that was keyed out. `ktv` was brightened ×2.
+- **Retried:** old_inn, tea_house, ktv (×2), office_tower, scratch_card (the first attempt had letters in it), luxury_condo.
+- **Weakest:** tattoo_parlor (reads a bit like a blade), procession (a temple and drums, not a flag), izakaya (small).
+- **Display:** lot icons sit at 1.5× (48px) in the 56px LED panel. Event icons replace the kanji glyph in the map bubble. Xiaoxiao tips keep the yellow 笑 bubble. `hot_trend` and `news` have no place in the UI yet.

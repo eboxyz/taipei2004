@@ -1,20 +1,88 @@
 import { useState } from 'react';
 import { canHireAccountant, hireAccountant } from '../../game/actions';
 import { ACCOUNTANT_COST, ACCOUNTANT_UNLOCK_LOTS } from '../../game/constants';
-import { netWorth, safeHours } from '../../game/economy';
+import { incomePerSec, isAreaOpen, netWorth, safeHours } from '../../game/economy';
+import { optimizeStaff } from '../../game/staffing';
+import { formatMoney } from '../../game/format';
 import { exportSave, importSave } from '../../game/save';
 import { Money } from '../components/bits';
 import { act, debugSkip, replaceState, resetGame, update } from '../engine';
 import { store, useGame } from '../store';
 import { towerFloors } from './MapScreen';
 import { DEBUG, gameNow } from '../time';
+import { COST, dayKey, draw, type CardGain } from '../../game/gacha';
+import { COLLECTIBLES, uniqueCards } from '../../game/binder';
+import { CHARACTERS } from '../../game/content/characters';
+import { AREA_ORDER, AREAS, FACTIONS } from '../../game/content/areas';
+import { EVENT_LIFETIME_S } from '../../game/constants';
+import type { EventKind } from '../../game/types';
 import { AutomationPanel, CashOutPanel, FaceTree } from './FacePanel';
+import { CashOutCeremony, Fireworks } from '../components/Ceremony';
+
+/**
+ * Dev only: ten real temple draws (same odds, pity and binder rewards) that don't spend
+ * incense or use up today's free draw. Returns a summary for the toast.
+ */
+function devDrawTen(): string {
+  const start = store.get();
+  if (!start.zodiac) return 'Pick your zodiac on the Draws tab first.';
+  const now = gameNow();
+  let s = start;
+  const gains: CardGain[] = [];
+  const pages: string[] = [];
+  for (let i = 0; i < 10; i++) {
+    // Top up the cost and mark the free draw as used, so the real draw() charges nothing net.
+    const funded = {
+      ...s,
+      currencies: { ...s.currencies, incense: s.currencies.incense + COST.temple.amount },
+      draws: { ...s.draws, lastFreeTemple: dayKey(now) },
+    };
+    const r = draw(funded, 'temple', Math.random, now);
+    if (!r.ok) return `Draw failed: ${r.reason}`;
+    s = r.state;
+    gains.push(...r.result.gains);
+    pages.push(...r.result.binderPages.map((f) => FACTIONS[f].name));
+  }
+  s = { ...s, draws: { ...s.draws, lastFreeTemple: start.draws.lastFreeTemple } };
+  update(() => s);
+  const fresh = gains.filter((g) => g.isNew).map((g) => `${CHARACTERS[g.charId]?.name ?? g.charId} (${g.rarity})`);
+  const tally = (['SSR', 'SR', 'R', 'N'] as const).map((r) => `${gains.filter((g) => g.rarity === r).length} ${r}`).join(' · ');
+  return [
+    `Draw ×10: ${tally}.`,
+    fresh.length ? `New: ${fresh.join(', ')}.` : 'No new cards.',
+    `Binder ${uniqueCards(s)}/${COLLECTIBLES.length}.`,
+    pages.length ? `Page complete: ${pages.join(', ')}!` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
+/** Dev only: reassigns every post for the most income and the best guards. */
+function devOptimizeStaff(): string {
+  const before = store.get();
+  const after = optimizeStaff(before);
+  update(() => after);
+  const fmt = (n: number) => formatMoney(n, before.settings.numberFormat);
+  return `Staff optimized: ${fmt(incomePerSec(before, 'average'))}/s → ${fmt(incomePerSec(after, 'average'))}/s (day and night averaged).`;
+}
+
+/** Dev only: puts a street event at the next open station, cycling through them, to check bubble placement. */
+function devStreetEvent(): string {
+  const st = store.get();
+  const open = AREA_ORDER.filter((a) => a !== 'xindian' && isAreaOpen(st, a));
+  const next = open[(open.indexOf(st.event?.area ?? open[open.length - 1]!) + 1) % open.length]!;
+  const kinds: EventKind[] = ['procession', 'recruit', 'scratch', 'tip'];
+  const kind = kinds[Math.floor(Math.random() * kinds.length)]!;
+  update((s) => ({ ...s, event: { id: Date.now(), area: next, kind, xiaoxiao: false, expiresIn: EVENT_LIFETIME_S } }));
+  return `Street event (${kind}) at ${AREAS[next].name}. Check the map.`;
+}
 
 export function OfficeScreen({ onToast }: { onToast: (text: string, tone?: 'good' | 'warn') => void }) {
   const s = useGame();
   const [exported, setExported] = useState('');
   const [importText, setImportText] = useState('');
   const [confirmReset, setConfirmReset] = useState(false);
+  const [scene, setScene] = useState<'cashout' | 'fireworks' | null>(null);
 
   const setFormat = (numberFormat: 'cjk' | 'kmb') => store.set({ ...store.get(), settings: { ...store.get().settings, numberFormat } });
 
@@ -170,7 +238,24 @@ export function OfficeScreen({ onToast }: { onToast: (text: string, tone?: 'good
             <button className="btn secondary small" onClick={() => update((st) => ({ ...st, currencies: { scratch: st.currencies.scratch + 10, incense: st.currencies.incense + 100, lottery: st.currencies.lottery + 3 } }))}>
               +Draw currency
             </button>
+            <button className="btn secondary small" onClick={() => onToast(devStreetEvent())}>
+              Street event
+            </button>
+            <button className="btn secondary small" onClick={() => setScene('cashout')}>
+              Cash-out scene
+            </button>
+            <button className="btn secondary small" onClick={() => setScene('fireworks')}>
+              Fireworks scene
+            </button>
+            <button className="btn secondary small" onClick={() => onToast(devDrawTen())}>
+              Draw ×10
+            </button>
+            <button className="btn secondary small" onClick={() => onToast(devOptimizeStaff())}>
+              Optimize everyone
+            </button>
           </div>
+          {scene === 'cashout' && <CashOutCeremony face={1234} onClose={() => setScene(null)} />}
+          {scene === 'fireworks' && <Fireworks full onClose={() => setScene(null)} />}
         </section>
       )}
 

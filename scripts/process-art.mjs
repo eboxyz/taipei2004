@@ -25,6 +25,8 @@ const RULES = {
   crests: { width: 512, height: 512, fit: 'contain' },
   // 2:3 → 9:16, centered.
   key: { width: 720, height: 1280, position: 'centre' },
+  // Map stickers show at 40–76px. Trim the empty margin so each fills its box, longest side 256.
+  map: { width: 256, height: 256, fit: 'inside', trim: true },
   // PixelLab icons: keep pixels crisp.
   lots: { pixel: true },
   events: { pixel: true },
@@ -33,6 +35,7 @@ const RULES = {
 /** The brief used a few longer file names than the game's data ids. */
 const ALIASES = {
   areas: { east_district: 'east' },
+  events: { scratch_card: 'scratch' },
   crests: {
     miaokou_gang: 'miaokou',
     molong_society: 'molong',
@@ -71,7 +74,7 @@ for (const [category, rule] of Object.entries(RULES)) {
     if (rule.pixel) {
       await sharp(input).png().toFile(path.join(OUT, category, `${id}.png`));
     } else {
-      await sharp(input)
+      await (rule.trim ? sharp(input).trim() : sharp(input))
         .resize(rule.width, rule.height, {
           fit: rule.fit ?? 'cover',
           position: rule.position ?? 'centre',

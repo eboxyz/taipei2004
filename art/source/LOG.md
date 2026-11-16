@@ -94,8 +94,32 @@
 
 - `crests/player_agency.png` — accepted — Batch E; built-in imagegen with approved style reference and shared style block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned 1254×1254 despite requested 1024×1024; retained higher-resolution source to avoid extra generation usage; downsample to target in game art processing.
 
-- `key/title.png` — pending review — Foreground portraits removed to match scene-only brief; Batch F; built-in imagegen with approved style sheet and shared style block; 1024×1536; exact prompt saved alongside image.
+- `key/title.png` — accepted — Foreground portraits removed to match scene-only brief; Batch F; built-in imagegen with approved style sheet and shared style block; 1024×1536; exact prompt saved alongside image.
 
-- `key/cash_out.png` — pending review — Batch F; built-in imagegen with approved style sheet and shared style block; 1024×1536; exact prompt saved alongside image.
+- `key/cash_out.png` — accepted — Batch F; built-in imagegen with approved style sheet and shared style block; 1024×1536; exact prompt saved alongside image.
 
-- `key/fireworks.png` — pending review — Foreground portraits removed to match scene-only brief; Batch F; built-in imagegen with approved style sheet and shared style block; 1024×1536; exact prompt saved alongside image.
+- `key/fireworks.png` — accepted — Foreground portraits removed to match scene-only brief; Batch F; built-in imagegen with approved style sheet and shared style block; 1024×1536; exact prompt saved alongside image.
+
+- `map/palace_hotel.png` — accepted — Batch G look approval sample; built-in imagegen with approved style reference, shared style block and map-sticker block; 1254×1254 RGBA, alpha (0, 255); exact prompt saved alongside image. Generator returned larger square source than requested 1024×1024; retained to conserve generation usage. Look approved by user; remaining 11 authorized.
+
+- `map/airplane.png` — pending review — Batch G; built-in imagegen with approved style sheet, palace-hotel miniature reference, shared style block and map-sticker block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned larger square source than requested 1024x1024; retained to conserve generation usage.
+
+- `map/dragon_boat.png` — pending review — Travel direction corrected to match brief; Batch G; built-in imagegen with approved style sheet, palace-hotel miniature reference, shared style block and map-sticker block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned larger square source than requested 1024x1024; retained to conserve generation usage.
+
+- `map/tiaotong_lanterns.png` — pending review — Batch G; built-in imagegen with approved style sheet, palace-hotel miniature reference, shared style block and map-sticker block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned larger square source than requested 1024x1024; retained to conserve generation usage.
+
+- `map/red_house.png` — pending review — Batch G; built-in imagegen with approved style sheet, palace-hotel miniature reference, shared style block and map-sticker block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned larger square source than requested 1024x1024; retained to conserve generation usage.
+
+- `map/night_market.png` — pending review — Batch G; built-in imagegen with approved style sheet, palace-hotel miniature reference, shared style block and map-sticker block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned larger square source than requested 1024x1024; retained to conserve generation usage.
+
+- `map/betel_nut_stand.png` — pending review — Batch G; built-in imagegen with approved style sheet, palace-hotel miniature reference, shared style block and map-sticker block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned larger square source than requested 1024x1024; retained to conserve generation usage.
+
+- `map/garbage_truck.png` — pending review — Batch G; built-in imagegen with approved style sheet, palace-hotel miniature reference, shared style block and map-sticker block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned larger square source than requested 1024x1024; retained to conserve generation usage.
+
+- `map/scooters.png` — pending review — Travel direction corrected to match brief; Batch G; built-in imagegen with approved style sheet, palace-hotel miniature reference, shared style block and map-sticker block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned larger square source than requested 1024x1024; retained to conserve generation usage.
+
+- `map/campus_palms.png` — pending review — Batch G; built-in imagegen with approved style sheet, palace-hotel miniature reference, shared style block and map-sticker block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned larger square source than requested 1024x1024; retained to conserve generation usage.
+
+- `map/elephant_mountain.png` — pending review — Batch G; built-in imagegen with approved style sheet, palace-hotel miniature reference, shared style block and map-sticker block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned larger square source than requested 1024x1024; retained to conserve generation usage.
+
+- `map/street_cat.png` — pending review — Batch G; built-in imagegen with approved style sheet, palace-hotel miniature reference, shared style block and map-sticker block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned larger square source than requested 1024x1024; retained to conserve generation usage.

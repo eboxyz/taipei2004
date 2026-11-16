@@ -26,12 +26,15 @@ const GENERIC_LED = [
 
 export function LedIcon({ category, size = 56 }: { category: string; size?: number }) {
   const url = artUrl('lots', category);
-  if (url)
+  if (url) {
+    // PixelLab icons are 32×32. Show them at the largest half-step scale that fits inside the border.
+    const px = (Math.floor(((size - 4) / 32) * 2) / 2) * 32;
     return (
       <div className="led" style={{ width: size, height: size }}>
-        <img src={url} alt="" />
+        <img src={url} alt="" width={px} height={px} draggable={false} />
       </div>
     );
+  }
   const def = CATEGORIES[category];
   const rows = def?.led ?? GENERIC_LED;
   const color = def?.ledColor ?? '#2EF0FF';

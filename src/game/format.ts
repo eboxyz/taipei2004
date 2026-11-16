@@ -55,5 +55,7 @@ export function formatDuration(seconds: number): string {
 }
 
 export function formatPercent(x: number): string {
+  // Never round up to 100%: it should only appear when it's really complete.
+  if (x < 1 && x >= 0.995) return '99%';
   return `${(x * 100).toFixed(x < 0.1 ? 1 : 0)}%`;
 }

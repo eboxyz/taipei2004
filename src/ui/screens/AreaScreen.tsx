@@ -15,6 +15,7 @@ import {
   isLotLocked,
   lotIncome,
   marketShare,
+  lotOwnership,
   nextMilestone,
   upgradeCost,
   upgradeCostN,
@@ -64,6 +65,7 @@ function ShareCard({ area, onFight, onToast }: { area: AreaId; onFight: (fightId
   const s = useGame();
   const def = AREAS[area];
   const share = marketShare(s, area);
+  const ownership = lotOwnership(s, area);
   const prog = s.areas[area];
   const chips: { key: FightKey; at: number; who: string; done: boolean; title: string }[] = [
     { key: 'lt1' as const, at: SHARE_THRESHOLDS.lt1, who: def.lt1Id, done: prog.lt1, title: 'Lieutenant' },
@@ -71,19 +73,24 @@ function ShareCard({ area, onFight, onToast }: { area: AreaId; onFight: (fightId
     { key: 'boss' as const, at: SHARE_THRESHOLDS.boss, who: def.bossId, done: prog.boss, title: 'Boss' },
   ];
   return (
-    <section className="share" aria-label="Market share">
+    <section className="share" aria-label="District progress">
       <div className="share-top">
         <span className="label">
-          Market share vs {FACTIONS[def.rival].name} <span className="zh">{FACTIONS[def.rival].crest}</span>
+          Properties owned in {def.name} <span className="zh">{FACTIONS[def.rival].crest}</span>
         </span>
-        <span className="value">{formatPercent(share)}</span>
+        <span className="value">{ownership.owned}/{ownership.total} · {formatPercent(ownership.fraction)}</span>
       </div>
-      <div className="share-bar">
-        <div className="share-fill" style={{ width: `${Math.min(100, share * 100)}%` }} />
-        {chips.filter((c) => !(area === 'wanhua' && c.key === 'lt1')).map((c) => (
-          <div key={c.key} className="share-tick" style={{ left: `${c.at * 100}%` }} />
-        ))}
+      <div className="share-bar" role="progressbar" aria-label="Properties owned" aria-valuemin={0} aria-valuemax={ownership.total} aria-valuenow={ownership.owned}>
+        <div className="share-fill" style={{ width: `${ownership.fraction * 100}%` }} />
       </div>
+      <details className="influence-details">
+        <summary>Market influence: {formatPercent(share)}</summary>
+        <p>Buying and upgrading lots grows your influence against {FACTIONS[def.rival].name}. This is separate from the number of properties you own. The next rivals require 25%, 50% and 75% influence; A-Biao only needs your first property.</p>
+        <div className="share-bar" aria-label="Market influence">
+          <div className="share-fill" style={{ width: `${Math.min(100, share * 100)}%` }} />
+          {chips.filter((c) => !(area === 'wanhua' && c.key === 'lt1')).map((c) => <div key={c.key} className="share-tick" style={{ left: `${c.at * 100}%` }} />)}
+        </div>
+      </details>
       <div className="fights">
         {chips.map((c) => {
           const fight = fightFor(area, c.key);
@@ -91,19 +98,25 @@ function ShareCard({ area, onFight, onToast }: { area: AreaId; onFight: (fightId
           const ready = !c.done && !!fight && canChallenge(s, fight);
           const name = CHARACTERS[c.who]?.name ?? '???';
           const tap = () => {
-            if (!c.done && !ready) return onToast(opening ? `Buy your first Wanhua property to challenge ${name}.` : `Reach ${Math.round(c.at * 100)}% market share to challenge ${name}.`);
+            if (!c.done && !ready) return onToast(opening ? `Buy your first Wanhua property to challenge ${name}.` : `Reach ${Math.round(c.at * 100)}% market influence to challenge ${name}.`);
             if (!fight) return onToast(`${def.name}'s Turf Wars arrive in a later build (milestone 4).`);
             onFight(fight.id);
           };
           return (
             <button key={c.key} className="fight-chip" data-state={c.done ? 'done' : ready ? 'ready' : 'locked'} onClick={tap}>
-              <b>{c.done ? '✓ Rematch' : ready ? 'FIGHT!' : opening ? 'First property' : `${Math.round(c.at * 100)}%`}</b>
+              <b>{c.done ? '✓ Rematch' : ready ? 'FIGHT!' : opening ? 'First property' : `${Math.round(c.at * 100)}% influence`}</b>
               {c.title} · {name}
             </button>
           );
         })}
       </div>
-      {area === 'wanhua' && !prog.lt1 && <p className="map-hint">Buy your first property, then challenge A-Biao. Your starter squad is ready to try; losing costs nothing.</p>}
+      {area === 'wanhua' && !prog.lt1 && (
+        <p className="map-hint">
+          {AREAS.wanhua.lots.some((l) => s.lots[l.id])
+            ? 'A-Biao is ready for you. Tap FIGHT! Your starter squad can take him, and losing costs nothing.'
+            : 'Buy your first property, then challenge A-Biao. Your starter squad is ready to try; losing costs nothing.'}
+        </p>
+      )}
       {prog.boss && <p className="claimed-note">Claimed 🏮 Income ×2 here, lots you don't own yet cost 25% less, and no more shakedowns.</p>}
     </section>
   );

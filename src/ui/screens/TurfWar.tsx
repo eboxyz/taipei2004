@@ -1,6 +1,6 @@
 import { useEffect, useReducer, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
-import { createBattle, fire, stepBattle, type Battle, type BattleEvent, type BattleInput, type Unit } from '../../game/battle';
+import { createBattle, fire, type Battle, type BattleEvent, type BattleInput, type Unit } from '../../game/battle';
 import { classOf } from '../../game/characters';
 import { phaseAt, secondsToNextPhase } from '../../game/clock';
 import { ALL_LOTS, AREAS, AREA_ORDER, FACTIONS } from '../../game/content/areas';
@@ -30,6 +30,7 @@ import { SquadBoard } from '../components/Squad';
 import { update } from '../engine';
 import { store, useGame, useNow } from '../store';
 import { track } from '../analytics';
+import { createBattlePlayback } from '../battlePlayback';
 import { gameNow } from '../time';
 
 type Stage =
@@ -189,7 +190,6 @@ interface Impact {
   born: number;
 }
 
-const STEP = 0.05;
 const ULT_PAUSE_MS = 1300;
 const END_PAUSE_MS = 1600;
 
@@ -261,7 +261,7 @@ function BattleScreen({ input, seed, fight, onEnd }: { input: BattleInput; seed:
         case 'skill': {
           mark(e.uid, 'lunge');
           const u = b.units.find((x) => x.uid === e.uid);
-          if (e.ultimate) ult.current = { uid: e.uid, until: now + ULT_PAUSE_MS };
+          if (e.ultimate) ult.current = { uid: e.uid, until: now + ULT_PAUSE_MS / speedRef.current };
           else if (u) float(e.uid, CHARACTERS[u.spec.charId]?.skill.name ?? 'Skill', 'status');
           break;
         }
@@ -280,31 +280,43 @@ function BattleScreen({ input, seed, fight, onEnd }: { input: BattleInput; seed:
 
   useEffect(() => {
     let raf = 0;
-    let last = performance.now();
-    let acc = 0;
-    const frame = (now: number) => {
-      const dt = Math.min(0.1, (now - last) / 1000);
-      last = now;
-      const bt = battle.current!;
+    let delivered = false;
+    const bt = battle.current!;
+    const advance = createBattlePlayback(bt, Date.now());
+    const pump = () => {
+      if (delivered) return;
+      const now = performance.now();
       if (ult.current && now >= ult.current.until) ult.current = null;
-      if (!ult.current && !bt.outcome) {
-        acc += dt * speedRef.current;
-        while (acc >= STEP && !bt.outcome && !ult.current) {
-          acc -= STEP;
-          handle(stepBattle(bt, STEP), now);
-        }
-      }
-      floats.current = floats.current.filter((f) => now - f.born < 900);
-      if (impact.current && now - impact.current.born > (ended.current ? END_PAUSE_MS + 400 : 700)) impact.current = null;
-      if (ended.current && now - ended.current > END_PAUSE_MS) {
-        onEndRef.current(bt.outcome!);
+      // Ultimate cards are visual effects, not pauses in the simulation.
+      const wasOver = !!bt.outcome;
+      advance(Date.now(), speedRef.current, (events) => {
+        if (!document.hidden) handle(events, now);
+      });
+      if (!wasOver && bt.outcome && ended.current === null) ended.current = now;
+      floats.current = floats.current.filter((f) => now - f.born < 900).slice(-80);
+      if (impact.current && now - impact.current.born > (ended.current !== null ? END_PAUSE_MS / speedRef.current + 400 : 700)) impact.current = null;
+      if (bt.outcome && ended.current !== null && (document.hidden || now - ended.current >= END_PAUSE_MS / speedRef.current)) {
+        delivered = true;
+        onEndRef.current(bt.outcome);
         return;
       }
-      redraw();
-      raf = requestAnimationFrame(frame);
+      if (!document.hidden) redraw();
     };
+    const frame = () => {
+      pump();
+      if (!delivered) raf = requestAnimationFrame(frame);
+    };
+    // Background timers may be throttled; the next callback catches up the full gap.
+    const timer = window.setInterval(pump, 100);
+    document.addEventListener('visibilitychange', pump);
+    window.addEventListener('focus', pump);
     raf = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', pump);
+      window.removeEventListener('focus', pump);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -342,7 +354,7 @@ function BattleScreen({ input, seed, fight, onEnd }: { input: BattleInput; seed:
           {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}
         </span>
         <div className="seg" role="group" aria-label="Battle speed">
-          {([1, 2] as const).map((v) => (
+          {([1, 2, 4, 8] as const).map((v) => (
             <button key={v} aria-pressed={speed === v} onClick={() => update((st) => ({ ...st, settings: { ...st.settings, battleSpeed: v } }))}>
               {v}×
             </button>

@@ -4677,9 +4677,28 @@ textarea.save-box {
 }
 
 /* Small contextual actions keep the map readable on narrow phones. */
-.next-goal { margin: 0 0 12px; padding: 12px; border-radius: 12px; background: var(--night-2); }
-.next-goal strong { font-size: 12px; color: var(--warm); }
-.next-goal p { margin: 5px 0 10px; font-size: 13px; line-height: 1.5; }
+/* A compact one-row tip above the map, so the map itself stays on screen. */
+.next-goal {
+  display: grid;
+  grid-template-columns: 1fr auto 44px;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 4px 0 4px 12px;
+  border-radius: 12px;
+  background: var(--night-2);
+}
+.next-goal p { margin: 0; font-size: 13px; line-height: 1.35; }
+.next-goal strong {
+  margin-right: 6px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--warm);
+}
+.next-goal .btn { min-height: 40px; white-space: nowrap; }
+.next-goal-close { width: 44px; height: 44px; font-size: 20px; line-height: 1; color: var(--muted); }
 .resource-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 8px 0; }
 .resource-actions button { min-height: 44px; white-space: normal; }
 .tracking-choice { display: flex; align-items: center; gap: 10px; min-height: 44px; font-weight: 700; }
@@ -4688,3 +4707,11 @@ textarea.save-box {
 
 .backup-upload { display: grid; gap: 6px; font-size: 13px; max-width: 100%; }
 .backup-upload input { min-height: 44px; max-width: 100%; }
+
+.influence-details { margin-top: 10px; font-size: 12px; color: var(--muted); }
+.influence-details summary { min-height: 44px; cursor: pointer; padding: 12px 0; }
+.influence-details p { margin: 0 0 10px; line-height: 1.5; }
+.battle-bar { flex-wrap: wrap; }
+.battle-bar .seg { order: 3; flex-basis: 100%; display: flex; }
+.battle-bar .seg button { flex: 1; min-height: 44px; }
+.battle-bar .auto-btn { min-height: 44px; }

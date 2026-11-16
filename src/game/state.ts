@@ -35,7 +35,7 @@ export function initialState(now: number): GameState {
     hot: null,
     event: null,
     eventIn: 240,
-    settings: { numberFormat: 'cjk', buyMode: 1, battleSpeed: 1, battleAuto: true },
+    settings: { numberFormat: 'cjk', buyMode: 1, battleSpeed: 8, battleAuto: true },
     stats: { shakedownsRepelled: 0, shakedownBonus: 0, lotsBought: 0, fightsWon: 0, fightsLost: 0 },
     shakedownIn: 120,
   };
@@ -71,7 +71,11 @@ export function migrate(raw: unknown, now: number): GameState | null {
       claimedEver: s.meta?.claimedEver ?? (Object.entries(s.areas ?? {}) as [AreaId, AreaProgress][]).filter(([, p]) => p.boss).map(([a]) => a),
     },
     auto: { ...base.auto, ...s.auto },
-    settings: { ...base.settings, ...s.settings },
+    settings: {
+      ...base.settings, ...s.settings,
+      // v6 makes fast battles the default once for existing saves; later choices persist.
+      battleSpeed: s.version < 6 ? 8 : ([1, 2, 4, 8].includes(s.settings?.battleSpeed ?? 0) ? s.settings!.battleSpeed : 8),
+    },
     stats: { ...base.stats, ...s.stats },
     areas: { ...base.areas, ...s.areas },
     characters: { ...base.characters, ...s.characters },

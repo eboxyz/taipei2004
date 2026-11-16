@@ -231,7 +231,7 @@ export interface GameState {
   settings: {
     numberFormat: 'cjk' | 'kmb';
     buyMode: BuyMode;
-    battleSpeed: 1 | 2;
+    battleSpeed: 1 | 2 | 4 | 8;
     battleAuto: boolean;
   };
   stats: {

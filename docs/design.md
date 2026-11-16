@@ -49,7 +49,7 @@ The mechanics are inspired by Yakuza 0's real estate minigame. All characters, g
 - Drag and pinch to move around. Station labels alternate above and below the line.
 - **On the map:** street-event icons at stations, Xiaoxiao Realty billboards, and an LED-sign news ticker.
 - **Layout:** the blue line bends southwest from Ximen down to Longshan Temple (Wanhua), as it does in real life. Labels sit on alternating sides so they never touch.
-- **Station labels:** the English name sits above a station-sign tag in the rival gang's color with the Chinese name on it, followed by your market share. Map text has a halo in the map's background color.
+- **Station labels:** the English name sits above a station-sign tag in the rival gang's color with the Chinese name on it, followed by the percentage of properties you own (each lot counts equally). Investment-weighted market influence is shown separately in the area screen for rival unlocks. Map text has a halo in the map's background color.
 - **Decorations:** 12 small illustrated stickers fill the empty corners (a palace hotel, a dragon boat, a garbage truck, scooters and so on). They are made by Codex in `map/`, sit under the stations, can't be tapped, and are darkened at night. A sticker whose art is missing is simply left out.
 - **Street-event bubbles:** each station has a fixed bubble spot clear of labels, lines and the map edge. The tail points at the station, and bubbles draw above the stations so a tap always reaches them.
 
@@ -182,7 +182,7 @@ Steps 1–2 unlock during a run. Steps 3–5 are permanent Face upgrades, each w
 
 ### Basics
 - **Fights:** in each area, the first lieutenant unlocks at 25% market share, the second at 50%, and the boss at 75%.
-- **Length:** about 30–60 seconds for a lieutenant and about 90 for a boss, at 1× or 2× speed.
+- **Length:** about 30–60 simulated seconds for a lieutenant and about 90 for a boss. Playback defaults to **8×** (roughly 4–12 real seconds), with 1× / 2× / 4× / 8× controls. Existing pre-v6 saves switch to 8× once; later speed choices persist. Ultimate reveals are brief visual overlays and do not pause combat. Battle advancement uses elapsed wall time with fixed simulation steps, independent of rendering; a background timer and visibility/focus handlers catch up throttled tabs. Results resolve once. A browser that fully suspends the tab catches up when it can run again.
 - **Losing costs nothing.** The results screen gives a hint about what to try next.
 - **Quick claim:** you can skip a fight when your army is at least 2× the recommended power.
 - **Time limit:** 75 s for a lieutenant and 120 s for a boss. If the rival holds out, it counts as a loss, which still costs nothing.
@@ -317,7 +317,7 @@ The 10 rival lieutenants join as SR and the 5 bosses as SSR, so everyone earns c
 
 ### Currencies (never reset)
 
-The Map includes a dismissible contextual next-step prompt and an initially expanded, collapsible **Resource guide** below the stations. The guide remembers its folded state and links to Draws and an available rewarded rematch. It explains draw costs, currency sources and reward timing, highlights whether the daily free Temple visit is ready, and briefly covers cash, XP and Face. English labels accompany the decorative currency glyphs.
+The Map includes a compact one-row **next-step tip** above the map (challenge a ready rival, buy an affordable lot, post a free agent, collect the safe, save toward the next lot, or reach the next rival's share). It hides when there's nothing useful to suggest, and dismissing one tip is remembered. Below the stations, a collapsible **Resource guide** starts folded and remembers if you open it. It links to Draws and an available rewarded rematch. It explains draw costs, currency sources and reward timing, highlights whether the daily free Temple visit is ready, and briefly covers cash, XP and Face. English labels accompany the decorative currency glyphs.
 
 | Currency | Earned from |
 |---|---|
@@ -397,7 +397,7 @@ Turf Wars launch from an area screen.
 ### Screens
 - **Map:** the metro map with a status bar (cash, income per second, clock with ☀/🌙), red dots for anything worth tapping, and street-event icons.
 - **The safe** is a raised button in the middle of the tab bar, so it never covers the lot buttons.
-- **Area screen:** an illustrated banner (day/night), a market share bar with fight buttons at 25/50/75%, the buy-amount toggle, and a list of lot cards (icon, name, ☀/🌙, level, income, (M)(S) staff slots, upgrade button). Tapping a lot opens a bottom sheet for staffing and details.
+- **Area screen:** an illustrated banner (day/night), a property-ownership count and bar, a fold-out market-influence explanation/bar, and fight buttons at 25/50/75% influence (A-Biao unlocks after the first property), the buy-amount toggle, and a list of lot cards (icon, name, ☀/🌙, level, income, (M)(S) staff slots, upgrade button). Tapping a lot opens a bottom sheet for staffing and details.
 - **Turf War:** prep → battle → results.
 - **Draws:** each tier has its own full-screen interaction.
 - **Face tree:** four vertical scrolling lists, one per branch.

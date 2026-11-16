@@ -8,6 +8,7 @@ import {
   incomePerSec,
   isLotLocked,
   marketShare,
+  lotOwnership,
   maxAffordableUpgrades,
   milestoneMult,
   safeCapacity,
@@ -229,5 +230,22 @@ describe('saves', () => {
     const s = migrate(partial, NOW)!;
     expect(s.cash).toBe(123);
     expect(s.characters.a_cai).toBeDefined();
+  });
+});
+
+describe('ownership versus market influence', () => {
+  it('counts the first property visibly and never loses ownership from upgrades or rival unlocks', () => {
+    let s = must(buyLot(rich(initialState(NOW)), 'w1'));
+    expect(lotOwnership(s, 'wanhua')).toEqual({ owned: 1, total: 9, fraction: 1 / 9 });
+    const before = marketShare(s, 'wanhua');
+    s = must(upgradeLot(s, 'w1', 2));
+    expect(lotOwnership(s, 'wanhua').fraction).toBe(1 / 9);
+    expect(marketShare(s, 'wanhua')).toBeGreaterThan(before);
+    const upgraded = marketShare(s, 'wanhua');
+    s = { ...s, areas: { ...s.areas, wanhua: { ...s.areas.wanhua, lt1: true } } };
+    expect(marketShare(s, 'wanhua')).toBe(upgraded);
+    s = must(buyLot(s, 'w2'));
+    expect(lotOwnership(s, 'wanhua').fraction).toBe(2 / 9);
+    expect(marketShare(s, 'wanhua')).toBeGreaterThan(upgraded);
   });
 });

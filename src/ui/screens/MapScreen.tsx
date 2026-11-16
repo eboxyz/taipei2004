@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { ALL_LOTS, AREA_ORDER, AREAS, FACTIONS } from '../../game/content/areas';
+import { ALL_LOTS, AREAS, FACTIONS } from '../../game/content/areas';
 import { phaseAt } from '../../game/clock';
-import { buyPrice, isAreaOpen, isLotLocked, marketShare } from '../../game/economy';
+import { buyPrice, isAreaOpen, isLotLocked, lotOwnership } from '../../game/economy';
 import { formatPercent } from '../../game/format';
 import type { AreaId, GameState } from '../../game/types';
 import { store, useGame, useNow } from '../store';
@@ -19,7 +19,7 @@ import { postOf } from '../../game/economy';
 import { track } from '../analytics';
 import { artUrl } from '../art';
 import { LOTTERY_BALLS, COST, canDraw } from '../../game/gacha';
-import { REMATCH_COOLDOWN_MS, SHAKEDOWN_SCRATCH_EVERY } from '../../game/constants';
+import { REMATCH_COOLDOWN_MS, SHAKEDOWN_SCRATCH_EVERY, SHARE_THRESHOLDS } from '../../game/constants';
 
 interface Node {
   id: AreaId;
@@ -123,6 +123,62 @@ function Tower({ x, baseY, floors, night }: { x: number; baseY: number; floors: 
   );
 }
 
+interface Goal {
+  /** Identifies this exact suggestion, so dismissing it hides only this one. */
+  key: string;
+  text: string;
+  action: string;
+  go: () => void;
+}
+
+/**
+ * The one most useful thing to do next, or null when there's nothing worth suggesting
+ * (for example, every open area is claimed and every lot is bought).
+ */
+function nextGoal(s: GameState, nav: { onOpenArea: (id: AreaId) => void; onOpenCrew: () => void }): Goal | null {
+  const fmt = (n: number) => formatMoney(n, s.settings.numberFormat);
+  const ready = Object.values(FIGHTS).find((f) => isFirstWin(s, f) && canChallenge(s, f));
+  if (ready)
+    return {
+      key: `fight:${ready.id}`,
+      text: `Challenge ${CHARACTERS[ready.leader]?.name} in ${AREAS[ready.area].name}. Losing costs nothing.`,
+      action: 'Turf War',
+      go: () => nav.onOpenArea(ready.area),
+    };
+
+  const lot = Object.values(ALL_LOTS)
+    .filter((l) => !s.lots[l.id] && isAreaOpen(s, l.area) && !isLotLocked(s, l))
+    .sort((a, b) => buyPrice(s, a) - buyPrice(s, b))[0];
+  if (lot && s.cash >= buyPrice(s, lot))
+    return { key: `buy:${lot.id}`, text: `You can afford ${lot.name} in ${AREAS[lot.area].name}.`, action: 'Buy it', go: () => nav.onOpenArea(lot.area) };
+
+  const freeAgent = Object.keys(s.characters).some((id) => classOf(id) === 'agent' && !postOf(s, id));
+  if (freeAgent && Object.values(s.lots).some((ls) => !ls.manager))
+    return { key: 'staff', text: 'A free agent could be managing a lot. Posts shows who fits where.', action: 'Crew', go: nav.onOpenCrew };
+
+  if (s.safe > 0 && !s.run.accountant)
+    return { key: 'safe', text: 'Income is waiting in your safe. Collect it to spend on properties.', action: 'Collect', go: () => void act(collectSafe) };
+
+  if (lot)
+    return {
+      key: `save:${lot.id}`,
+      text: `Next property: ${lot.name}. Save ${fmt(Math.max(0, buyPrice(s, lot) - s.cash))} more.`,
+      action: 'View',
+      go: () => nav.onOpenArea(lot.area),
+    };
+
+  // Everything here is bought: name the next rival and the share it takes.
+  const next = Object.values(FIGHTS).find((f) => isAreaOpen(s, f.area) && isFirstWin(s, f));
+  if (next)
+    return {
+      key: `share:${next.id}`,
+      text: `Upgrade lots in ${AREAS[next.area].name} to ${Math.round(SHARE_THRESHOLDS[next.key] * 100)}% market share to challenge ${CHARACTERS[next.leader]?.name}.`,
+      action: 'View',
+      go: () => nav.onOpenArea(next.area),
+    };
+  return null;
+}
+
 function eventText(r: EventReward, fmt: 'cjk' | 'kmb'): string {
   switch (r.event.kind) {
     case 'procession':
@@ -151,23 +207,31 @@ export function MapScreen({ onOpenArea, onOpenDraws, onOpenCrew, onLocked }: { o
   // A halo in the map's own background color keeps labels readable where they cross lines and rivers.
   const halo = { stroke: night ? '#1a1240' : '#f1ead9', strokeWidth: 3.5, strokeLinejoin: 'round' as const, paintOrder: 'stroke' };
   const floors = towerFloors(s);
+  // The resource guide starts folded so the map stays the home screen; it remembers if you open it.
   const [guideOpen, setGuideOpen] = useState(() => {
-    try { return localStorage.getItem('taipei2004.resourceGuide') !== 'closed'; } catch { return true; }
+    try {
+      return localStorage.getItem('taipei2004.resourceGuide') === 'open';
+    } catch {
+      return false;
+    }
   });
-  const [dismissed, setDismissed] = useState('');
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return localStorage.getItem('taipei2004.dismissedGoal') ?? '';
+    } catch {
+      return '';
+    }
+  });
+  const dismiss = (key: string) => {
+    setDismissed(key);
+    try {
+      localStorage.setItem('taipei2004.dismissedGoal', key);
+    } catch {
+      /* this visit only */
+    }
+  };
   const rematch = Object.values(FIGHTS).find((f) => !isFirstWin(s, f) && rematchCooldown(s, f.id, now) === 0);
-  const readyFight = Object.values(FIGHTS).find((f) => isFirstWin(s, f) && canChallenge(s, f));
-  const nextLot = Object.values(ALL_LOTS).filter((lot) => !s.lots[lot.id] && isAreaOpen(s, lot.area) && !isLotLocked(s, lot)).sort((a, b) => buyPrice(s, a) - buyPrice(s, b))[0];
-  const canStaff = Object.values(s.lots).some((lot) => !lot.manager) && Object.keys(s.characters).some((id) => classOf(id) === 'agent' && !postOf(s, id));
-  const goal = readyFight ? { text: `Challenge ${CHARACTERS[readyFight.leader]?.name} in ${AREAS[readyFight.area].name}. Losing costs nothing.`, action: 'View Turf War', go: () => onOpenArea(readyFight.area) }
-    : nextLot && s.cash >= buyPrice(s, nextLot) ? { text: `You can afford ${nextLot.name} in ${AREAS[nextLot.area].name}.`, action: 'View property', go: () => onOpenArea(nextLot.area) }
-      : canStaff ? { text: 'You have an empty manager post and free crew. Compare their income bonuses in Crew.', action: 'View crew', go: onOpenCrew }
-        : s.safe > 0 && !s.run.accountant ? { text: 'Income is waiting in your safe. Collect it to spend on properties.', action: 'Collect safe', go: () => { act(collectSafe); } }
-          : nextLot ? { text: `Next property: ${nextLot.name}. Save ${formatMoney(Math.max(0, buyPrice(s, nextLot) - s.cash), s.settings.numberFormat)} more.`, action: 'View property', go: () => onOpenArea(nextLot.area) }
-            : { text: `Keep upgrading lots to grow your market share in ${AREAS[AREA_ORDER.filter((id) => isAreaOpen(s, id) && !s.areas[id].boss).at(-1) ?? 'wanhua'].name}.`, action: 'View area', go: () => onOpenArea(AREA_ORDER.filter((id) => isAreaOpen(s, id) && !s.areas[id].boss).at(-1) ?? 'wanhua') };
-
-
-  const goalKey = `${goal.action}:${readyFight?.id ?? nextLot?.id ?? ''}`;
+  const goal = nextGoal(s, { onOpenArea, onOpenCrew });
 
   const ticker = [
     `★ 房價指數 HOUSING INDEX ${s.index.toFixed(1)} ▲`,
@@ -199,10 +263,26 @@ export function MapScreen({ onOpenArea, onOpenDraws, onOpenCrew, onLocked }: { o
         <span className="ticker-track">{ticker}</span>
       </div>
       <div className="map-wrap">
-        {dismissed !== goalKey && <section className="next-goal" aria-label="Next step">
-          <div><strong>Next step</strong><p>{goal.text}</p></div>
-          <div className="resource-actions"><button className="btn secondary small" onClick={() => { track('next_goal_opened', { action: goal.action }); goal.go(); }}>{goal.action}</button><button className="link-btn" onClick={() => setDismissed(goalKey)}>Dismiss</button></div>
-        </section>}
+        {goal && dismissed !== goal.key && (
+          <section className="next-goal" aria-label="Next step">
+            <p>
+              <strong>Next</strong>
+              {goal.text}
+            </p>
+            <button
+              className="btn secondary small"
+              onClick={() => {
+                track('next_goal_opened', { action: goal.action });
+                goal.go();
+              }}
+            >
+              {goal.action}
+            </button>
+            <button className="next-goal-close" aria-label="Dismiss this tip" onClick={() => dismiss(goal.key)}>
+              ×
+            </button>
+          </section>
+        )}
         <div className="map-title">
           <h1>
             TAIPEI<span className="zh">台北</span>
@@ -264,14 +344,14 @@ export function MapScreen({ onOpenArea, onOpenDraws, onOpenCrew, onLocked }: { o
             {NODES.map((n) => {
               const area = AREAS[n.id];
               const open = isAreaOpen(s, n.id);
-              const share = marketShare(s, n.id);
+              const ownership = lotOwnership(s, n.id);
               const color = FACTIONS[area.rival].colors[0];
               const lx = n.label === 'right' ? n.x + 24 : n.x + (n.labelDx ?? 0);
               const ly = n.label === 'above' ? n.y - 46 : n.label === 'below' ? n.y + 34 : n.y - 6;
               const anchor = n.label === 'right' ? 'start' : 'middle';
-              // Chinese name on a station-sign tag, then the market share. CJK glyphs are 1em wide.
+              // Chinese name on a station-sign tag, then the property ownership. CJK glyphs are 1em wide.
               const tag = open ? tagColors(FACTIONS[area.rival].colors) : { bg: night ? '#2c2360' : '#e2dac8', fg: sub };
-              const pct = open ? formatPercent(share) : '';
+              const pct = open ? formatPercent(ownership.fraction) : '';
               const tagW = area.nameZh.length * 12 + 10;
               const pctW = pct ? pct.length * 7.4 + 5 : 0;
               const tx = anchor === 'middle' ? lx - (tagW + pctW) / 2 : lx;
@@ -281,7 +361,7 @@ export function MapScreen({ onOpenArea, onOpenDraws, onOpenCrew, onLocked }: { o
                   className="station-btn"
                   role="button"
                   tabIndex={0}
-                  aria-label={`${area.name} ${open ? '' : '(locked)'}`}
+                  aria-label={`${area.name} ${open ? `${ownership.owned} of ${ownership.total} properties owned` : '(locked)'}`}
                   onClick={() => tapArea(n.id)}
                   onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && tapArea(n.id)}
                 >
@@ -398,7 +478,7 @@ export function MapScreen({ onOpenArea, onOpenDraws, onOpenCrew, onLocked }: { o
               </div>
             </dl>
             <p className="resource-guide-other"><strong>Cash:</strong> own and upgrade lots for steady income. <strong>XP:</strong> Turf War fights and repelled shakedowns. <strong>Face:</strong> cash out in Office for permanent upgrades.</p>
-            <p className="resource-guide-foot">Draw currencies carry over when you cash out.</p>
+            <p className="resource-guide-foot">Station percentages show properties owned. Rival challenges use market influence from buying and upgrading. Draw currencies carry over when you cash out.</p>
           </div>
         </details>
       </div>

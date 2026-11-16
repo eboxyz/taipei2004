@@ -193,3 +193,10 @@ export function postOf(state: GameState, charId: string): { lotId: string; slot:
   }
   return null;
 }
+
+/** Literal property ownership for map progress; separate from investment-weighted battle influence. */
+export function lotOwnership(state: GameState, area: AreaId): { owned: number; total: number; fraction: number } {
+  const lots = AREAS[area].lots;
+  const owned = lots.filter((lot) => !!state.lots[lot.id]).length;
+  return { owned, total: lots.length, fraction: lots.length ? owned / lots.length : 0 };
+}

@@ -59,9 +59,20 @@ describe('upgrades', () => {
 describe('buying and income', () => {
   it('buys a lot, raises the index and earns income', () => {
     const s = must(buyLot(initialState(NOW), 'w1'));
-    expect(s.cash).toBe(5e4 - 3e4);
+    expect(s.cash).toBe(5e4 - ALL_LOTS.w1!.price);
     expect(s.index).toBe(101);
     expect(incomePerSec(s, 'average')).toBeGreaterThan(0);
+  });
+
+  it('lets a fresh player buy and upgrade the first stall without waiting', () => {
+    const bought = must(buyLot(initialState(NOW), 'w1'));
+    const upgraded = must(upgradeLot(bought, 'w1', 1));
+    expect(upgraded.lots.w1!.level).toBe(2);
+    expect(upgraded.cash).toBeGreaterThanOrEqual(0);
+    expect(incomePerSec(upgraded, 'average')).toBeGreaterThan(incomePerSec(bought, 'average'));
+    // The opening discount must not propagate into the later-area price template.
+    expect(ALL_LOTS.x1!.price).toBe(1.8e6);
+    expect(AREAS.zhongshan.lots[0]!.price).toBe(3e8);
   });
 
   it('keeps rival-held lots locked', () => {

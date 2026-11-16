@@ -5,7 +5,7 @@ import { CHARACTERS } from './content/characters';
 import { ALL_LOTS } from './content/areas';
 import { upgradeCountFor } from './economy';
 import { initialState, migrate } from './state';
-import { battleInputFor, bestSquad, buildYourSide, canFill, effectiveSquad, fillSquad, resolveFight, retireAutoSquad, setSquadSlot } from './turf';
+import { canChallenge, battleInputFor, bestSquad, buildYourSide, canFill, effectiveSquad, fillSquad, resolveFight, retireAutoSquad, setSquadSlot } from './turf';
 import { deserialize, serialize } from './save';
 import type { GameState, SquadStyle } from './types';
 
@@ -243,5 +243,22 @@ describe('buy modes and saves', () => {
     expect(s.settings.numberFormat).toBe('kmb');
     expect(s.settings.buyMode).toBe(1);
     expect(s.meta.squadSlots).toBe(3);
+  });
+});
+
+describe('opening A-Biao encounter', () => {
+  it('unlocks on the first Wanhua property without unlocking later rivals', () => {
+    const fresh = initialState(0);
+    expect(canChallenge(fresh, FIGHTS.wanhua_lt1!)).toBe(false);
+    const first = { ...fresh, lots: { w1: { level: 1, invested: ALL_LOTS.w1!.price } } };
+    expect(canChallenge(first, FIGHTS.wanhua_lt1!)).toBe(true);
+    expect(canChallenge(first, FIGHTS.wanhua_lt2!)).toBe(false);
+    expect(canChallenge(first, FIGHTS.wanhua_boss!)).toBe(false);
+    expect(canChallenge(first, FIGHTS.ximending_lt1!)).toBe(false);
+    const win = resolveFight(first, 'wanhua_lt1', 'win', 0);
+    expect(win.result.incense).toBe(10);
+    expect(win.state.characters.a_biao).toBeTruthy();
+    expect(win.state.meta.squadSlots).toBe(4);
+    expect(win.result.underdog).toBe(false);
   });
 });

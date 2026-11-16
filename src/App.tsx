@@ -7,8 +7,8 @@ import { ALL_LOTS, AREAS, AREA_ORDER } from './game/content/areas';
 import { CHARACTERS } from './game/content/characters';
 import { ACCOUNTANT_COST } from './game/constants';
 import { formatMoney } from './game/format';
-import { marketShare, postOf } from './game/economy';
-import { SHARE_THRESHOLDS } from './game/constants';
+import { postOf } from './game/economy';
+import { canChallenge } from './game/turf';
 import { fightFor } from './game/content/fights';
 import type { AwaySummary } from './game/offline';
 import type { AreaId, GameEvent, GameState } from './game/types';
@@ -79,7 +79,7 @@ function Game() {
   const freeCrew = Object.keys(s.characters).some((id) => !postOf(s, id));
   const openSlots = Object.values(s.lots).some((ls) => !ls.manager || !ls.security);
   const fightReady = AREA_ORDER.some((a) =>
-    (['lt1', 'lt2', 'boss'] as const).some((k) => !s.areas[a][k] && fightFor(a, k) && marketShare(s, a) >= SHARE_THRESHOLDS[k]),
+    (['lt1', 'lt2', 'boss'] as const).some((k) => !s.areas[a][k] && fightFor(a, k) && canChallenge(s, fightFor(a, k)!)),
   ) || !!s.event;
   const dots: Partial<Record<Tab, boolean>> = {
     map: fightReady,

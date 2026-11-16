@@ -98,7 +98,8 @@ export const AREAS: Record<AreaId, AreaDef> = {
     lt1Id: 'a_biao',
     lt2Id: 'gui_yi',
     bossId: 'kun_bo',
-    lots: wanhuaLots,
+    // Opening discounts apply only here; later districts retain the original template above.
+    lots: wanhuaLots.map((lot) => ({ ...lot, price: ({ w1: 2e4, w2: 8.5e4, w3: 3.6e5 } as Record<string, number>)[lot.id] ?? lot.price })),
   },
   ximending: {
     id: 'ximending',

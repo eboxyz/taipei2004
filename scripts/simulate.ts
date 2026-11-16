@@ -9,10 +9,12 @@
 import { buyLot, canHireAccountant, collectSafe, hireAccountant, upgradeLot } from '../src/game/actions';
 import { autoStaff } from '../src/game/auto';
 import { AREAS, AREA_ORDER } from '../src/game/content/areas';
-import { ACCOUNTANT_COST, CLAIM_INDEX, SHARE_THRESHOLDS } from '../src/game/constants';
-import { buyPrice, incomePerSec, isAreaOpen, isLotLocked, marketShare, netWorth, upgradeCost } from '../src/game/economy';
+import { ACCOUNTANT_COST, CLAIM_INDEX } from '../src/game/constants';
+import { buyPrice, incomePerSec, isAreaOpen, isLotLocked, netWorth, upgradeCost } from '../src/game/economy';
 import { cashOutPreview, startRun } from '../src/game/face';
 import { formatDuration, formatMoney } from '../src/game/format';
+import { canChallenge } from '../src/game/turf';
+import { fightFor } from '../src/game/content/fights';
 import { initialState } from '../src/game/state';
 import { tick } from '../src/game/tick';
 import type { AreaId, FightKey, GameState } from '../src/game/types';
@@ -90,15 +92,21 @@ while (t < HOURS * 3600) {
     for (let i = 0; i < 40; i++) {
       const n = decide(s);
       if (!n) break;
+      if (env.EARLY && t <= 300) {
+        for (const [id, lot] of Object.entries(n.lots)) {
+          const before = s.lots[id];
+          if (!before || (before.level < 10 && lot.level >= 10)) console.log(`${formatDuration(t)}  ${id}: ${before ? 'first income milestone (Lv10)' : 'bought'}`);
+        }
+      }
       s = n;
     }
     s = autoStaff(s);
   }
   for (const area of AREA_ORDER) {
     if (!isAreaOpen(s, area) || AREAS[area].lots.length === 0) continue;
-    const share = marketShare(s, area);
     for (const key of ['lt1', 'lt2', 'boss'] as FightKey[]) {
-      if (s.areas[area][key] || share < SHARE_THRESHOLDS[key]) continue;
+      const fight = fightFor(area, key);
+      if (s.areas[area][key] || !fight || !canChallenge(s, fight)) continue;
       s = { ...s, areas: { ...s.areas, [area]: { ...s.areas[area], [key]: true } } };
       if (key === 'boss') s = { ...s, index: s.index + CLAIM_INDEX, run: { ...s.run, claims: s.run.claims + 1 } };
       hits.push(`${formatDuration(t).padStart(8)}  ${AREAS[area as AreaId].name} ${key}${key === 'boss' ? ' (claimed)' : ''}  · Face if you cashed out now: ${cashOutPreview(s).face}`);

@@ -1,3 +1,4 @@
+import { canChallenge } from '../../game/turf';
 import { useState } from 'react';
 import { assignStaff, buyLot, upgradeLot } from '../../game/actions';
 import { ALL_LOTS, AREAS, FACTIONS } from '../../game/content/areas';
@@ -79,28 +80,30 @@ function ShareCard({ area, onFight, onToast }: { area: AreaId; onFight: (fightId
       </div>
       <div className="share-bar">
         <div className="share-fill" style={{ width: `${Math.min(100, share * 100)}%` }} />
-        {chips.map((c) => (
+        {chips.filter((c) => !(area === 'wanhua' && c.key === 'lt1')).map((c) => (
           <div key={c.key} className="share-tick" style={{ left: `${c.at * 100}%` }} />
         ))}
       </div>
       <div className="fights">
         {chips.map((c) => {
-          const ready = !c.done && share >= c.at;
-          const name = CHARACTERS[c.who]?.name ?? '???';
           const fight = fightFor(area, c.key);
+          const opening = fight?.id === 'wanhua_lt1';
+          const ready = !c.done && !!fight && canChallenge(s, fight);
+          const name = CHARACTERS[c.who]?.name ?? '???';
           const tap = () => {
-            if (!c.done && !ready) return onToast(`Reach ${Math.round(c.at * 100)}% market share to challenge ${name}.`);
+            if (!c.done && !ready) return onToast(opening ? `Buy your first Wanhua property to challenge ${name}.` : `Reach ${Math.round(c.at * 100)}% market share to challenge ${name}.`);
             if (!fight) return onToast(`${def.name}'s Turf Wars arrive in a later build (milestone 4).`);
             onFight(fight.id);
           };
           return (
             <button key={c.key} className="fight-chip" data-state={c.done ? 'done' : ready ? 'ready' : 'locked'} onClick={tap}>
-              <b>{c.done ? '✓ Rematch' : ready ? 'FIGHT!' : `${Math.round(c.at * 100)}%`}</b>
+              <b>{c.done ? '✓ Rematch' : ready ? 'FIGHT!' : opening ? 'First property' : `${Math.round(c.at * 100)}%`}</b>
               {c.title} · {name}
             </button>
           );
         })}
       </div>
+      {area === 'wanhua' && !prog.lt1 && <p className="map-hint">Buy your first property, then challenge A-Biao. Your starter squad is ready to try; losing costs nothing.</p>}
       {prog.boss && <p className="claimed-note">Claimed 🏮 Income ×2 here, lots you don't own yet cost 25% less, and no more shakedowns.</p>}
     </section>
   );

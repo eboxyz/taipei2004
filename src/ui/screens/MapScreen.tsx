@@ -11,7 +11,7 @@ import { formatMoney } from '../../game/format';
 import { update } from '../engine';
 import { gameNow } from '../time';
 import { FIGHTS } from '../../game/content/fights';
-import { isFirstWin, rematchCooldown } from '../../game/turf';
+import { canChallenge, isFirstWin, rematchCooldown } from '../../game/turf';
 import { collectSafe } from '../../game/actions';
 import { act } from '../engine';
 import { classOf } from '../../game/characters';
@@ -19,7 +19,7 @@ import { postOf } from '../../game/economy';
 import { track } from '../analytics';
 import { artUrl } from '../art';
 import { LOTTERY_BALLS, COST, canDraw } from '../../game/gacha';
-import { SHARE_THRESHOLDS, REMATCH_COOLDOWN_MS, SHAKEDOWN_SCRATCH_EVERY } from '../../game/constants';
+import { REMATCH_COOLDOWN_MS, SHAKEDOWN_SCRATCH_EVERY } from '../../game/constants';
 
 interface Node {
   id: AreaId;
@@ -156,10 +156,10 @@ export function MapScreen({ onOpenArea, onOpenDraws, onOpenCrew, onLocked }: { o
   });
   const [dismissed, setDismissed] = useState('');
   const rematch = Object.values(FIGHTS).find((f) => !isFirstWin(s, f) && rematchCooldown(s, f.id, now) === 0);
-  const readyFight = Object.values(FIGHTS).find((f) => isAreaOpen(s, f.area) && isFirstWin(s, f) && marketShare(s, f.area) >= SHARE_THRESHOLDS[f.key]);
+  const readyFight = Object.values(FIGHTS).find((f) => isFirstWin(s, f) && canChallenge(s, f));
   const nextLot = Object.values(ALL_LOTS).filter((lot) => !s.lots[lot.id] && isAreaOpen(s, lot.area) && !isLotLocked(s, lot)).sort((a, b) => buyPrice(s, a) - buyPrice(s, b))[0];
   const canStaff = Object.values(s.lots).some((lot) => !lot.manager) && Object.keys(s.characters).some((id) => classOf(id) === 'agent' && !postOf(s, id));
-  const goal = readyFight ? { text: `A rival challenge is ready in ${AREAS[readyFight.area].name}. Losing costs nothing.`, action: 'View Turf War', go: () => onOpenArea(readyFight.area) }
+  const goal = readyFight ? { text: `Challenge ${CHARACTERS[readyFight.leader]?.name} in ${AREAS[readyFight.area].name}. Losing costs nothing.`, action: 'View Turf War', go: () => onOpenArea(readyFight.area) }
     : nextLot && s.cash >= buyPrice(s, nextLot) ? { text: `You can afford ${nextLot.name} in ${AREAS[nextLot.area].name}.`, action: 'View property', go: () => onOpenArea(nextLot.area) }
       : canStaff ? { text: 'You have an empty manager post and free crew. Compare their income bonuses in Crew.', action: 'View crew', go: onOpenCrew }
         : s.safe > 0 && !s.run.accountant ? { text: 'Income is waiting in your safe. Collect it to spend on properties.', action: 'Collect safe', go: () => { act(collectSafe); } }

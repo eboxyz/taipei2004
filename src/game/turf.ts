@@ -20,7 +20,7 @@ import {
   SQUAD_SIZE,
   UNDERDOG_MARGIN,
 } from './constants';
-import { marketShare } from './economy';
+import { isAreaOpen, marketShare } from './economy';
 import { perk } from './perks';
 import { payBinderPages } from './binder';
 import { addCard } from './gacha';
@@ -447,7 +447,8 @@ export function resolveFight(state: GameState, fightId: string, outcome: 'win' |
   result.incense = Math.round(fight.rewards.incense * perk.incenseMult(state));
   result.lottery = fight.rewards.lottery;
   result.claimed = fight.key === 'boss';
-  result.underdog = marketShare(state, fight.area) < SHARE_THRESHOLDS[fight.key] + UNDERDOG_MARGIN;
+  const share = marketShare(state, fight.area);
+  result.underdog = share >= SHARE_THRESHOLDS[fight.key] && share < SHARE_THRESHOLDS[fight.key] + UNDERDOG_MARGIN;
   if (result.underdog) s = { ...s, run: { ...s.run, underdog: s.run.underdog + 1 } };
   if (result.claimed) {
     result.indexJump = CLAIM_INDEX * perk.indexMult(state);
@@ -501,4 +502,11 @@ export function resolveFight(state: GameState, fightId: string, outcome: 'win' |
 
 export function lotName(id: string): string {
   return ALL_LOTS[id]?.name ?? id;
+}
+
+/** The opening encounter teaches fighting immediately after the first property purchase. */
+export function canChallenge(state: GameState, fight: FightDef): boolean {
+  if (!isAreaOpen(state, fight.area)) return false;
+  if (fight.id === 'wanhua_lt1') return AREAS.wanhua.lots.some((lot) => !!state.lots[lot.id]);
+  return marketShare(state, fight.area) >= SHARE_THRESHOLDS[fight.key];
 }

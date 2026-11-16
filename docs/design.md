@@ -95,6 +95,7 @@ The mechanics are inspired by Yakuza 0's real estate minigame. All characters, g
 - About 10 lots per area, including the Xiaoxiao lot. Each has a business category, a ☀ day or 🌙 night tag, a price and an income rate.
 - **9 lots per area:** 6 to buy, 2 held by the lieutenants, 1 Xiaoxiao branch. The lists live in `src/game/content/areas.ts`.
 - Prices scale ×100 per area, following Wanhua's curve. Income grows less, so each area pays back slower than Wanhua: Ximending ×8 (with cheaper lots, ×0.6 price and ×1.25 income), Zhongshan ×64, East ×400, Xinyi ×800 (prices ×1.5, income ×1.5). Tuned with `npm run sim`.
+- **Opening pace:** the first three Wanhua lots cost NT$20K / 85K / 360K (previously 30K / 115K / 440K). This lowers their upgrade costs too. A fresh player can buy the snack stall and upgrade it immediately. Later areas retain the original Wanhua template; existing invested amounts and save balances are preserved.
 - **Upgrades:** the first upgrade costs the lot's price, and each level after costs ×1.17 more (tuned with `npm run sim`). Income doubles at levels 10, 25, 50 and 100.
 - Lot art changes at levels 25, 50 and 100. For the first pass, the code shows a tier badge on one icon.
 - Upgrade toggle: ×1 / ×10 / Max / **Next ×2** (every level up to the next income-doubling milestone, or 10 levels once all are reached). The choice is remembered. Press and hold to keep upgrading.
@@ -268,6 +269,7 @@ Steps 1–2 unlock during a run. Steps 3–5 are permanent Face upgrades, each w
   | Tongtian (Xinyi) | Gains a permit buff every 15 s | Fast-kill squads |
 
 ### Rewards
+- **Opening encounter:** A-Biao unlocks immediately after buying any first Wanhua property. His button says “First property” before that, and the map next-step prompt names him when ready. No market-share grind precedes the first fight. Other rivals retain their 25% / 50% / 75% requirements. This does not grant an underdog Face bonus below the normal 25% line; fight strength and rewards remain as tuned.
 - **First win:** unlocks lots or claims the area. The lieutenant or boss joins your collection, and you get gacha currency: 10 incense money for a lieutenant, 20 incense money and 1 lottery ticket for a boss.
 - **Rematches:** available any time. A win pays 1 scratch card and XP, at most once per fight every 5 minutes (so quick wins can't be farmed).
 - **XP for the whole squad:** 60 for a first win, 30 for any other win, 12 for a loss.
@@ -377,7 +379,9 @@ Four branches, 18 upgrades (most with several levels), with costs that rise as y
 | 4–6 | About a day each | Xinyi clear and fireworks |
 | After | Ongoing | 新店 and the binder |
 
-Simulated with a perfect, always-online player (`npm run sim`): run 1 claims Ximending at about 55 min and reaches Zhongshan's lieutenants at 2.5–3.3 h. With early upgrades (Good Name 4, a few discounts) East District's first lieutenant comes at about 6.5 h. A strong late run (Good Name 12 and the other Business upgrades maxed) claims Xinyi at about 17 h. Fights are tuned with the first expected All-around squad for each fight (`TUNE=1 npm run sim:fights`, 400 seeds, strengths to three decimals). After the commander fix, the 400-seed confirmation gives 59–63% daytime wins and 99–100% nighttime wins across all 15 fights; the three stronger Wanhua follow-up squads remain easier. Compare all fills and their lineups with `STYLES=1 N=300 npm run sim:fights`; each uses the same seed range. Power is an estimate, so similar displayed power can still hide differences in attacks, skills and auras.
+Simulated with a perfect, always-online player (`npm run sim`): run 1 claims Ximending at about 51 min after the opening discounts (previously about 55 min) and reaches Zhongshan's lieutenants at 2.5–3.3 h. With early upgrades (Good Name 4, a few discounts) East District's first lieutenant comes at about 6.5 h. A strong late run (Good Name 12 and the other Business upgrades maxed) claims Xinyi at about 17 h. Fights are tuned with the first expected All-around squad for each fight (`TUNE=1 npm run sim:fights`, 400 seeds, strengths to three decimals). After the commander fix, the 400-seed confirmation gives 59–63% daytime wins and 99–100% nighttime wins across all 15 fights; the three stronger Wanhua follow-up squads remain easier. Compare all fills and their lineups with `STYLES=1 N=300 npm run sim:fights`; each uses the same seed range. Power is an estimate, so similar displayed power can still hide differences in attacks, skills and auras.
+
+Opening check (`EARLY=1 HOURS=1 node --import tsx scripts/simulate.ts`, same seed and greedy strategy): second property 85 → 55 seconds; first level-10 milestone 170 → 100 seconds; first lieutenant unlock initially 11m25s → 8m15s from discounts, then → first property purchase (5s in the simulator) with the opening encounter exception; Wanhua claim 20m10s → 16m45s. These are economy unlock times with instantly won fights, not observed player completion times.
 
 **Notoriety (名氣)** levels for after the story are **parked until the user has played a build.**
 

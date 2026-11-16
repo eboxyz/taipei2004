@@ -4,7 +4,7 @@ import { autoBuy, autoStaff, autoUpgrade, automate } from './auto';
 import { ALL_LOTS, AREAS } from './content/areas';
 import { FIGHTS } from './content/fights';
 import { CLAIM_INDEX, FACE_DIVISOR, START_CASH } from './constants';
-import { buyPrice, incomePerSec, lotIncome } from './economy';
+import { buyPrice, incomePerSec, lotIncome, marketShare } from './economy';
 import { claimEvent, tickEvents } from './events';
 import { buyFaceUpgrade, canCashOut, cashOut, cashOutPreview, faceCost, startRun } from './face';
 import { initialState, migrate } from './state';
@@ -139,7 +139,11 @@ describe('claims', () => {
   });
 
   it('a win right at the threshold is an underdog win', () => {
-    const r = resolveFight(initialState(NOW), 'wanhua_lt1', 'win');
+    const base = withLots(['w1']);
+    const rival = base.lots.w1!.invested * (1 / marketShare(base, 'wanhua') - 1);
+    const atThreshold = { ...base, lots: { w1: { ...base.lots.w1!, invested: rival / 3 + 1 } } };
+    expect(marketShare(atThreshold, 'wanhua')).toBeCloseTo(0.25);
+    const r = resolveFight(atThreshold, 'wanhua_lt1', 'win');
     expect(r.result.underdog).toBe(true);
     expect(r.state.run.underdog).toBe(1);
   });

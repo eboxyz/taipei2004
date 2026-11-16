@@ -48,7 +48,7 @@ Earliest-seen characters first: the grunt and starters, then each district's riv
 | 26 | bao_zhu | legendary property flipper: Bao-zhu, a woman in her 50s, huge permed hair, jade bangles, bright floral blouse, cash-stuffed fanny pack, confident laugh | todo |
 | 27 | a_tai | temple festival performer: A-Tai, a young man in a Techno Third Prince deity costume with a big painted festival head, glow sticks in both hands, dancing pose | todo |
 | 28 | jackpot | betel-nut stand owner who won the lottery: Jackpot, a man in his 40s, gold chains, gold watch, gold-rimmed sunglasses, flashy gold shirt, cheeky grin | todo |
-| 29 | xiaoxiao_agent | cheerful realtor: Qiao-ling, a young woman in her 20s, sunny yellow blazer, white blouse, smiley-face pin, neat ponytail, a smile a little too wide, holding property flyers | todo |
+| 29 | xiaoxiao_agent | cheerful realtor: Qiao-lin, a young woman in her 20s, sunny yellow blazer, white blouse, smiley-face pin, neat ponytail, a smile a little too wide, holding property flyers | todo |
 | 30 | a_yin | meticulous scrivener: A-Yin, a thin man around 30, round glasses, yellow waistcoat, white shirt with sleeve protectors, an oversized seal stamp and a document folder, prim | todo |
 | 31 | xiao_dong | sunny realty chairman: Xiao-dong, a man around 50, immaculate white suit, yellow tie and pocket square, gold house-key lapel pin, open property brochure in hand, beaming too-perfect smile | todo |
 

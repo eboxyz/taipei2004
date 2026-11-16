@@ -328,7 +328,7 @@
   width: 1.6cqw;
   height: 1.6cqw;
   background: var(--warm);
-  animation: iso-spark 0.26s steps(4) forwards;
+  animation: iso-spark var(--spark-ms, 0.35s) steps(5) forwards;
 }
 
 .iso-sparks i:nth-child(2) {
@@ -371,7 +371,7 @@
   font-size: max(14px, 4.4cqw);
   color: #fff;
   text-shadow: 0.5cqw 0 var(--ink), -0.5cqw 0 var(--ink), 0 0.5cqw var(--ink), 0 -0.5cqw var(--ink);
-  animation: iso-float 0.9s steps(9) forwards;
+  animation: iso-float 1.6s steps(16) forwards;
 }
 
 .iso-float[data-kind='crit'] {

@@ -27,10 +27,30 @@ const ROW_J: Record<'you' | 'them', Record<'front' | 'back' | 'cmd', number>> = 
   you: { front: 4.6, back: 5.8, cmd: 7 },
 };
 
-const LUNGE_MS = 280;
-const HIT_MS = 260;
-const KO_MS = 320;
-const DROP_MS = 320;
+/** Motion lengths at the default 2× battle speed. Slower at 1×, quicker at 4× and 8× (see `pace`). */
+const LUNGE_MS = 1040;
+const HIT_MS = 880;
+/** The bright flash is only the first part of a hit; the knock-back runs the whole time. */
+const FLASH_SHARE = 0.35;
+const KO_MS = 1300;
+const DROP_MS = 960;
+/** Idle bob beat for sprites. */
+const BOB_MS = 900;
+
+/** Scales motion with the battle speed: ×1.4 at 1×, ×1 at 2×, ×0.7 at 4×, ×0.5 at 8×. */
+export function pace(speed: number): number {
+  return Math.min(1.5, Math.max(0.5, Math.sqrt(2 / Math.max(0.25, speed))));
+}
+
+/** How long a knocked-out runner stays on the board, so the tip-over can finish. */
+export function koShowMs(speed: number): number {
+  return KO_MS * pace(speed) + 250;
+}
+
+/** How long one dash lasts. Quick attackers swing more often than this, so a new dash waits for the last. */
+export function lungeLength(speed: number): number {
+  return LUNGE_MS * pace(speed);
+}
 
 export interface StageAnim {
   lunge: number;
@@ -133,6 +153,7 @@ export function IsoStage({
   anim,
   floats,
   now,
+  speed,
   manual,
   area,
   night,
@@ -143,6 +164,8 @@ export function IsoStage({
   anim: Map<number, StageAnim>;
   floats: StageFloat[];
   now: number;
+  /** Battle speed (1, 2, 4, 8 and the dev multiplier), for pacing the motion. */
+  speed: number;
   manual: boolean;
   area: AreaId;
   night: boolean;
@@ -186,6 +209,7 @@ export function IsoStage({
               a={a}
               floats={floats.filter((f) => f.uid === u.uid)}
               now={now}
+              k={pace(speed)}
               manual={manual}
               onTap={() => onTap(u)}
             />
@@ -205,6 +229,7 @@ function IsoUnit({
   a,
   floats,
   now,
+  k: pc,
   manual,
   onTap,
 }: {
@@ -215,9 +240,15 @@ function IsoUnit({
   a?: StageAnim;
   floats: StageFloat[];
   now: number;
+  /** Pace multiplier for every motion length. */
+  k: number;
   manual: boolean;
   onTap: () => void;
 }) {
+  const lungeMs = LUNGE_MS * pc;
+  const hitMs = HIT_MS * pc;
+  const koMs = KO_MS * pc;
+  const dropMs = DROP_MS * pc;
   const hp = Math.max(0, u.hp / u.maxHp);
   const sh = Math.min(1, u.shield / u.maxHp);
   const ready = manual && u.side === 'you' && u.alive && u.charge >= 1;
@@ -228,26 +259,30 @@ function IsoUnit({
   // Motion, in logical px.
   let dx = 0;
   let dy = 0;
-  const lunging = !!a && now - a.lunge < LUNGE_MS;
+  const lunging = !!a && now - a.lunge < lungeMs;
   if (lunging && !still) {
-    const k = Math.sin((Math.PI * (now - a!.lunge)) / LUNGE_MS);
+    // Out quickly, a beat at the target, then back: easier to follow than a plain there-and-back.
+    const t = (now - a!.lunge) / lungeMs;
+    const k = t < 0.35 ? Math.sin((t / 0.35) * (Math.PI / 2)) : t < 0.55 ? 1 : Math.cos(((t - 0.55) / 0.45) * (Math.PI / 2));
     if (target) {
       dx += (target.x - p.x) * 0.42 * k;
       dy += (target.y - p.y) * 0.42 * k;
-    } else dy -= 8 * k; // a skill with no target: a hop
+    } else dy -= 10 * k; // a skill with no target: a hop
   }
-  const hit = !!a && now - a.hit < HIT_MS;
+  const hitT = a ? (now - a.hit) / hitMs : 1;
+  const hit = hitT >= 0 && hitT < 1;
+  const flash = hitT >= 0 && hitT < FLASH_SHARE;
   if (hit && !still) {
-    const k = Math.sin((Math.PI * (now - a!.hit)) / HIT_MS) * 6;
+    const k = Math.sin(Math.PI * hitT) * 7;
     const vx = from ? p.x - from.x : them ? 1 : -1;
     const vy = from ? p.y - from.y : them ? -0.5 : 0.5;
     const len = Math.hypot(vx, vy) || 1;
     dx += (vx / len) * k;
     dy += (vy / len) * k;
   }
-  if (a?.spawn !== undefined && now - a.spawn < DROP_MS && !still) dy -= (1 - (now - a.spawn) / DROP_MS) * 48;
-  const bob = sprite && u.alive && !still ? (Math.floor(now / 500) + u.uid) % 2 : 0;
-  const tip = u.alive ? 0 : a?.ko !== undefined ? Math.min(1, (now - a.ko) / KO_MS) : 1;
+  if (a?.spawn !== undefined && now - a.spawn < dropMs && !still) dy -= (1 - (now - a.spawn) / dropMs) * 48;
+  const bob = sprite && u.alive && !still ? (Math.floor(now / BOB_MS) + u.uid) % 2 : 0;
+  const tip = u.alive ? 0 : a?.ko !== undefined ? Math.min(1, (now - a.ko) / koMs) : 1;
 
   const label = `${u.spec.name}, ${Math.ceil(u.hp)} of ${u.maxHp} health${ready ? ', skill ready' : ''}`;
   const figStyle: CSSProperties = { transform: `translate(${cq(dx)}, ${cq(dy - bob)})` };
@@ -260,7 +295,7 @@ function IsoUnit({
       data-side={u.side}
       data-alive={u.alive}
       data-ready={ready}
-      data-hit={hit}
+      data-hit={flash}
       data-stun={u.stun > 0}
       onClick={onTap}
       tabIndex={ready ? 0 : -1}
@@ -299,7 +334,7 @@ function IsoUnit({
         </span>
         {status && u.alive && <span className="iso-status">{status}</span>}
         {hit && (
-          <span className="iso-sparks" key={a!.hit} aria-hidden>
+          <span className="iso-sparks" key={a!.hit} aria-hidden style={{ ['--spark-ms' as string]: `${Math.round(hitMs * 0.8)}ms` }}>
             <i />
             <i />
             <i />

@@ -532,3 +532,14 @@ export function canChallenge(state: GameState, fight: FightDef): boolean {
   if (fight.id === 'wanhua_lt1') return AREAS.wanhua.lots.some((lot) => !!state.lots[lot.id]);
   return marketShare(state, fight.area) >= SHARE_THRESHOLDS[fight.key];
 }
+
+/**
+ * The rival you're working toward: the first unbeaten fight in an open district, a ready one first.
+ * The map's Next rival card and Standing Orders' focus both follow it.
+ */
+export function nextRivalFight(state: GameState): { fight: FightDef; ready: boolean } | null {
+  const open = Object.values(FIGHTS).filter((f) => isAreaOpen(state, f.area) && isFirstWin(state, f));
+  if (open.length === 0) return null;
+  const fight = open.find((f) => canChallenge(state, f)) ?? open[0]!;
+  return { fight, ready: canChallenge(state, fight) };
+}

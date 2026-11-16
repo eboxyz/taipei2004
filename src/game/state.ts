@@ -39,7 +39,7 @@ function blankState(now: number): GameState {
     binderPaid: [],
     run: { accountant: false, claims: 0, underdog: 0, startedAt: now, headline: null, offers: [], commissions: [], events: 0, agentWin: false },
     meta: { safeHours: START_SAFE_HOURS, face: 0, faceTotal: 0, squadSlots: 3, runs: 0, chapterClears: 0, xindianClears: 0, upgrades: {}, claimedEver: [] },
-    auto: { upgrade: [], buy: false, staff: false },
+    auto: { orders: false, focus: false, budget: 0, staff: false, placed: [], rosterSeen: 0 },
     cooldowns: {},
     hot: null,
     event: null,
@@ -62,6 +62,7 @@ export function migrate(raw: unknown, now: number): GameState | null {
   // v4 added Face upgrades, cash-out, automation and street events.
   // v5 retired squad auto-fill; save.ts turns an auto squad into a fixed one (turf.ts can't be imported here).
   // v8 added headlines and commissions: see `startHeadlines` below.
+  // v9 merged Land Scout into Standing Orders: see `mergeAutomation` below.
   // Filling missing fields from a fresh state covers every step so far, and partial saves still load.
   const base = initialState(now);
   const merged: GameState = {
@@ -82,7 +83,7 @@ export function migrate(raw: unknown, now: number): GameState | null {
       // Saves from before v4 could already have claimed Wanhua.
       claimedEver: s.meta?.claimedEver ?? (Object.entries(s.areas ?? {}) as [AreaId, AreaProgress][]).filter(([, p]) => p.boss).map(([a]) => a),
     },
-    auto: { ...base.auto, ...s.auto },
+    auto: { ...base.auto, ...s.auto, placed: Array.isArray(s.auto?.placed) ? s.auto!.placed : [] },
     settings: {
       ...base.settings, ...s.settings,
       // v7 resets the default to 2× once for existing saves; later choices persist.
@@ -98,7 +99,30 @@ export function migrate(raw: unknown, now: number): GameState | null {
     lots: { ...s.lots },
     version: SAVE_VERSION,
   };
-  return s.version < 8 ? startHeadlines(merged, now) : merged;
+  const headlined = s.version < 8 ? startHeadlines(merged, now) : merged;
+  return s.version < 9 ? mergeAutomation(headlined, s.auto as { upgrade?: AreaId[]; buy?: boolean } | undefined) : headlined;
+}
+
+/** Face cost of Land Scout, refunded to anyone who owned both it and Standing Orders. */
+const LAND_SCOUT_FACE = 20;
+
+/**
+ * v9: Land Scout (auto-buy) and per-district Standing Orders became one Standing Orders that buys
+ * the best buy anywhere, new lots included. Owning either one now means owning Standing Orders;
+ * owning both refunds Land Scout's Face. It's on if you own it, as if just bought.
+ */
+function mergeAutomation(s: GameState, old: { upgrade?: AreaId[]; buy?: boolean } | undefined): GameState {
+  const { auto_buy: scout = 0, ...upgrades } = s.meta.upgrades;
+  const hadOrders = (upgrades.auto_upgrade ?? 0) > 0;
+  if (scout > 0 && !hadOrders) upgrades.auto_upgrade = 1;
+  const refund = scout > 0 && hadOrders ? LAND_SCOUT_FACE : 0;
+  const owns = (upgrades.auto_upgrade ?? 0) > 0;
+  const { upgrade: _upgrade, buy: _buy, ...auto } = { ...s.auto, ...(old ?? {}) } as GameState['auto'] & { upgrade?: AreaId[]; buy?: boolean };
+  return {
+    ...s,
+    meta: { ...s.meta, upgrades, face: s.meta.face + refund },
+    auto: { ...auto, orders: owns, focus: false, budget: 0, placed: [], rosterSeen: Object.keys(s.characters).length },
+  };
 }
 
 /**

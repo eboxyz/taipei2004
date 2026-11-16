@@ -241,9 +241,13 @@ export function postOf(state: GameState, charId: string): { lotId: string; slot:
   return null;
 }
 
-/** Literal property ownership for map progress; separate from investment-weighted battle influence. */
+/**
+ * Literal property ownership for map progress; separate from investment-weighted battle influence.
+ * The Xiaoxiao branch only counts once it's actually for sale (after Xindian's second lieutenant),
+ * so owning everything you can buy reads 100%. Lieutenant-held lots always count: they're the next goal.
+ */
 export function lotOwnership(state: GameState, area: AreaId): { owned: number; total: number; fraction: number } {
-  const lots = AREAS[area].lots;
+  const lots = AREAS[area].lots.filter((lot) => !!state.lots[lot.id] || lot.lock !== 'xiaoxiao' || !isLotLocked(state, lot));
   const owned = lots.filter((lot) => !!state.lots[lot.id]).length;
   return { owned, total: lots.length, fraction: lots.length ? owned / lots.length : 0 };
 }

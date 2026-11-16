@@ -28,6 +28,9 @@ export function buyFaceUpgrade(state: GameState, id: string): ActionResult {
   let s: GameState = { ...state, meta: { ...state.meta, face: state.meta.face - cost, upgrades: { ...state.meta.upgrades, [id]: level + 1 } } };
   // The bookkeeper perk applies to the current run straight away.
   if (id === 'bookkeeper') s = { ...s, run: { ...s.run, accountant: true } };
+  // Automation starts switched on when you buy it.
+  if (id === 'auto_upgrade') s = { ...s, auto: { ...s.auto, orders: true } };
+  if (id === 'auto_staff') s = { ...s, auto: { ...s.auto, staff: true } };
   return { ok: true, state: s };
 }
 

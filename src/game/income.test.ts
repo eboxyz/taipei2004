@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buyLot, upgradeLot } from './actions';
-import { autoUpgrade } from './auto';
+import { standingOrders } from './auto';
 import { ALL_LOTS, AREAS } from './content/areas';
 import { incomeBreakdown, incomePerSec, lotIncome, upgradeCost } from './economy';
 import { bestBuy, growth, sourceFactors } from './income';
@@ -59,7 +59,7 @@ describe('Standing Orders', () => {
     const s = withLots(levels, 3.5e5);
     expect(upgradeCost(s, ALL_LOTS.w1!, 10)).toBeLessThan(upgradeCost(s, ALL_LOTS.w2!, 9));
     expect(upgradeCost(s, ALL_LOTS.w1!, 10) + upgradeCost(s, ALL_LOTS.w2!, 9)).toBeGreaterThan(s.cash);
-    const { state } = autoUpgrade(s, 'wanhua');
+    const { state } = standingOrders({ ...s, auto: { ...s.auto, budget: s.cash } });
     expect(state.lots.w2!.level).toBe(10);
     expect(state.lots.w1!.level).toBe(10);
   });
@@ -69,10 +69,18 @@ describe('Standing Orders', () => {
     const s = withLots(levels, 2e5);
     expect(upgradeCost(s, ALL_LOTS.w1!, 10)).toBeLessThan(s.cash);
     expect(upgradeCost(s, ALL_LOTS.w2!, 9)).toBeGreaterThan(s.cash);
-    const { state } = autoUpgrade(s, 'wanhua');
+    const { state } = standingOrders({ ...s, auto: { ...s.auto, budget: s.cash } });
     expect(state.lots.w1!.level).toBe(10);
     expect(state.lots.w2!.level).toBe(9);
     expect(state.cash).toBe(2e5);
+  });
+
+  it('takes the best affordable buy when the best one is far off', () => {
+    // A tiny income: w2's step would take minutes of budget, so it buys w1's level now instead of idling.
+    const s = { ...withLots(levels, 1e6), index: 10 };
+    const { state } = standingOrders({ ...s, auto: { ...s.auto, budget: 9e4 } });
+    expect(state.lots.w1!.level).toBe(11);
+    expect(state.lots.w2!.level).toBe(9);
   });
 });
 

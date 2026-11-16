@@ -28,7 +28,7 @@ function DebugSpeedPill() {
   );
 }
 
-export function TopBar() {
+export function TopBar({ onHelp }: { onHelp: () => void }) {
   const s = useGame();
   const now = useNow(1000);
   const phase = phaseAt(now);
@@ -45,6 +45,9 @@ export function TopBar() {
         </div>
       </div>
       {DEBUG && <DebugSpeedPill />}
+      <button className="help-btn" onClick={onHelp} aria-label="How it works">
+        ?
+      </button>
       <div className="clock" data-phase={phase} aria-label={`${phase}, ${clockLabel(now)}`}>
         {phase === 'day' ? <SunIcon /> : <MoonIcon />}
         <span>{clockLabel(now)}</span>

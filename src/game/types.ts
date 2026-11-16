@@ -249,11 +249,20 @@ export interface GameState {
     /** Areas ever claimed, in any run. */
     claimedEver: AreaId[];
   };
-  /** Automation switches (each needs its Face upgrade). */
+  /** Automation switches (each needs its Face upgrade, and starts on when bought). */
   auto: {
-    upgrade: AreaId[];
-    buy: boolean;
+    /** Standing Orders: spends its budget on the best buy anywhere, new lots included. */
+    orders: boolean;
+    /** Standing Orders spends in the next rival's district until that fight is ready. */
+    focus: boolean;
+    /** NT$ set aside for Standing Orders: a share of what you earn while the game is open. */
+    budget: number;
+    /** Duty Roster: keeps posts filled with free crew. */
     staff: boolean;
+    /** Posts the Duty Roster filled ("lotId:slot:charId"); it may re-shuffle only these. */
+    placed: string[];
+    /** Crew size when the Duty Roster last looked, so a new character triggers a re-shuffle. */
+    rosterSeen: number;
   };
   /** Game time (ms) when each fight's rematch rewards are ready again. */
   cooldowns: Record<string, number>;

@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { track } from '../analytics';
-import { AREAS } from '../../game/content/areas';
+import { ALL_LOTS, AREAS } from '../../game/content/areas';
+import { CHARACTERS } from '../../game/content/characters';
+import { nextRivalFight } from '../../game/turf';
+import { ordersPick } from '../../game/auto';
 import { BRANCHES, FACE_UPGRADES, type Branch } from '../../game/content/face';
 import { buyFaceUpgrade, canCashOut, cashOut, cashOutPreview, faceCost, firstWins } from '../../game/face';
 import { formatMoney, formatNumber } from '../../game/format';
@@ -172,36 +175,62 @@ export function FaceTree({ onToast }: { onToast: (text: string, tone?: 'good' | 
   );
 }
 
+/** What Standing Orders is buying or saving for, and its budget. */
+function OrdersStatus() {
+  const s = useGame();
+  const pick = ordersPick(s);
+  const lot = pick ? ALL_LOTS[pick.buy.lotId] : undefined;
+  const what = pick && lot ? `${lot.name}${pick.buy.kind === 'buy' ? ' (new lot)' : ` toward Lv ${pick.buy.toLevel}`}` : null;
+  const inSafe = !s.run.accountant && s.safe > 0 && s.cash < s.auto.budget;
+  return (
+    <p className="orders-budget">
+      Set aside: <Money value={s.auto.budget} />
+      {what && ` · ${pick!.ready ? 'Buying' : 'Saving for'} ${what}`}
+      {inSafe && ' · Its budget is in the safe: collect it so it can spend.'}
+    </p>
+  );
+}
+
 export function AutomationPanel() {
   const s = useGame();
-  const any = perk.autoBuy(s) || perk.autoStaff(s) || perk.autoUpgrade(s);
-  if (!any) return null;
-  const toggle = (key: 'buy' | 'staff') => update((st) => ({ ...st, auto: { ...st.auto, [key]: !st.auto[key] } }));
+  const orders = perk.standingOrders(s);
+  const staff = perk.autoStaff(s);
+  if (!orders && !staff) return null;
+  const flip = (key: 'orders' | 'focus' | 'staff') => update((st) => ({ ...st, auto: { ...st.auto, [key]: !st.auto[key] } }));
+  const next = nextRivalFight(s);
+  const focusText =
+    next && !next.ready
+      ? `spend in ${AREAS[next.fight.area].name} until ${CHARACTERS[next.fight.leader]?.name}'s fight is ready, then go back to the best buy anywhere`
+      : "spend in the next rival's district until their fight is ready, then go back to the best buy anywhere";
   return (
     <section className="panel">
       <h2>Automation 自動化</h2>
       <p>Runs while the game is open. Switch each one on or off any time.</p>
-      {perk.autoBuy(s) && (
+      {orders && (
+        <>
+          <label className="switch-row">
+            <span>
+              <b>Standing Orders 自動加碼</b> half of what you earn goes to the best buy anywhere, new lots and upgrades alike
+            </span>
+            <input type="checkbox" checked={s.auto.orders} onChange={() => flip('orders')} />
+          </label>
+          <label className="switch-row orders-focus-row" data-off={!s.auto.orders}>
+            <span>
+              <b>Focus on the next rival</b> {focusText}
+            </span>
+            <input type="checkbox" checked={s.auto.focus} disabled={!s.auto.orders} onChange={() => flip('focus')} />
+          </label>
+          {s.auto.orders && <OrdersStatus />}
+        </>
+      )}
+      {staff && (
         <label className="switch-row">
           <span>
-            <b>Land Scout</b> buys the cheapest open lot when you can afford it
+            <b>Duty Roster</b> fills empty posts with free crew, best value first, and re-shuffles its own posts when someone new joins. It never
+            moves anyone you posted.
           </span>
-          <input type="checkbox" checked={s.auto.buy} onChange={() => toggle('buy')} />
+          <input type="checkbox" checked={s.auto.staff} onChange={() => flip('staff')} />
         </label>
-      )}
-      {perk.autoStaff(s) && (
-        <label className="switch-row">
-          <span>
-            <b>Duty Roster</b> fills empty slots with free crew: best managers on your biggest earners, guards just strong enough for their area
-          </span>
-          <input type="checkbox" checked={s.auto.staff} onChange={() => toggle('staff')} />
-        </label>
-      )}
-      {perk.autoUpgrade(s) && (
-        <p style={{ marginTop: 8 }}>
-          <b>Standing Orders</b> are switched on per area, from each area's screen. On now:{' '}
-          {s.auto.upgrade.length ? s.auto.upgrade.map((a) => AREAS[a].name).join(', ') : 'none'}.
-        </p>
       )}
     </section>
   );

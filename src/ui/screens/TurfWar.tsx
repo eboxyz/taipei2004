@@ -30,7 +30,7 @@ import { artUrl } from '../art';
 import { Portrait } from '../components/bits';
 import { useDebugSpeed } from '../components/chrome';
 import { SquadBoard } from '../components/Squad';
-import { IsoStage, type StageAnim } from '../battle/IsoStage';
+import { IsoStage, koShowMs, lungeLength, type StageAnim } from '../battle/IsoStage';
 import { update } from '../engine';
 import { store, useGame, useNow } from '../store';
 import { track } from '../analytics';
@@ -252,6 +252,12 @@ function BattleScreen({ input, seed, fight, onEnd }: { input: BattleInput; seed:
         a[k] = now;
         anim.current.set(uid, a);
       };
+      // Quick attackers swing more often than a dash lasts: let each dash finish before the next starts.
+      const dash = (uid: number, target: number | undefined) => {
+        const a = anim.current.get(uid) ?? { lunge: -1e9, hit: -1e9 };
+        if (now - a.lunge < lungeLength(speedRef.current)) return;
+        anim.current.set(uid, { ...a, lunge: now, target });
+      };
       const float = (uid: number, text: string, kind: Float['kind']) => {
         floats.current.push({ id: nextId.current++, uid, text, kind, born: now });
       };
@@ -261,8 +267,7 @@ function BattleScreen({ input, seed, fight, onEnd }: { input: BattleInput; seed:
       };
       switch (e.kind) {
         case 'attack':
-          mark(e.uid, 'lunge');
-          anim.current.get(e.uid)!.target = e.target;
+          dash(e.uid, e.target);
           break;
         case 'damage':
           mark(e.uid, 'hit');
@@ -294,9 +299,8 @@ function BattleScreen({ input, seed, fight, onEnd }: { input: BattleInput; seed:
           break;
         }
         case 'skill': {
-          mark(e.uid, 'lunge');
           // No target: the stage plays a hop instead of a dash.
-          anim.current.get(e.uid)!.target = undefined;
+          dash(e.uid, undefined);
           const u = b.units.find((x) => x.uid === e.uid);
           if (e.ultimate) ult.current = { uid: e.uid, until: now + ULT_PAUSE_MS / speedRef.current };
           else if (u) float(e.uid, CHARACTERS[u.spec.charId]?.skill.name ?? 'Skill', 'status');
@@ -330,7 +334,7 @@ function BattleScreen({ input, seed, fight, onEnd }: { input: BattleInput; seed:
         if (!document.hidden) handle(events, now);
       });
       if (!wasOver && bt.outcome && ended.current === null) ended.current = now;
-      floats.current = floats.current.filter((f) => now - f.born < 900).slice(-80);
+      floats.current = floats.current.filter((f) => now - f.born < 1600).slice(-80);
       if (impact.current && now - impact.current.born > (ended.current !== null ? END_PAUSE_MS / speedRef.current + 400 : 700)) impact.current = null;
       if (bt.outcome && ended.current !== null && (document.hidden || now - ended.current >= END_PAUSE_MS / speedRef.current)) {
         delivered = true;
@@ -363,7 +367,7 @@ function BattleScreen({ input, seed, fight, onEnd }: { input: BattleInput; seed:
     if (fire(b, u.uid)) handle(b.events, performance.now());
   };
   // Called-in runners leave the board shortly after they drop, so the front row doesn't fill with KOs.
-  const shown = (u: Unit) => u.alive || u.spec.slot >= 0 || now - (anim.current.get(u.uid)?.ko ?? 0) < 700;
+  const shown = (u: Unit) => u.alive || u.spec.slot >= 0 || now - (anim.current.get(u.uid)?.ko ?? 0) < koShowMs(speedRef.current);
   const left = Math.max(0, Math.ceil(b.input.timeLimit - b.t));
   const ultUnit = ult.current ? b.units.find((u) => u.uid === ult.current!.uid) : null;
   const area = AREAS[fight.area];
@@ -398,6 +402,7 @@ function BattleScreen({ input, seed, fight, onEnd }: { input: BattleInput; seed:
         anim={anim.current}
         floats={floats.current}
         now={now}
+        speed={speedRef.current}
         manual={!auto}
         area={fight.area}
         night={input.night}

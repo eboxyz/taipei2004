@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ALL_LOTS, AREAS, FACTIONS } from '../../game/content/areas';
 import { phaseAt } from '../../game/clock';
-import { isAreaOpen, isLotLocked, lotOwnership } from '../../game/economy';
+import { isAreaOpen, lotOwnership, marketShare } from '../../game/economy';
 import { bestBuy, mostlyIndex, openLots } from '../../game/income';
 import { HEADLINES } from '../../game/content/headlines';
 import { headlineRule } from '../../game/headlines';
@@ -13,16 +13,17 @@ import { claimEvent, EVENT_INFO, type EventReward } from '../../game/events';
 import { formatMoney } from '../../game/format';
 import { update } from '../engine';
 import { gameNow } from '../time';
-import { FIGHTS } from '../../game/content/fights';
-import { canChallenge, isFirstWin, rematchCooldown } from '../../game/turf';
+import { FIGHTS, type FightDef } from '../../game/content/fights';
+import { canChallenge, isFirstWin } from '../../game/turf';
 import { collectSafe } from '../../game/actions';
 import { act } from '../engine';
 import { classOf } from '../../game/characters';
 import { postOf } from '../../game/economy';
 import { track } from '../analytics';
 import { artUrl } from '../art';
-import { LOTTERY_BALLS, COST, canDraw, fortuneToday, STICK_GRADE } from '../../game/gacha';
-import { FORTUNE_EVENT_RATE, REMATCH_COOLDOWN_MS, SHAKEDOWN_SCRATCH_EVERY, SHARE_THRESHOLDS } from '../../game/constants';
+import { Portrait } from '../components/bits';
+import { fortuneToday, STICK_GRADE } from '../../game/gacha';
+import { FORTUNE_EVENT_RATE, SHARE_THRESHOLDS } from '../../game/constants';
 
 interface Node {
   id: AreaId;
@@ -144,15 +145,6 @@ function nextGoal(s: GameState, nav: { onOpenArea: (id: AreaId) => void; onOpenC
   if (s.run.offers.length > 0)
     return { key: `headline:${s.meta.runs}`, text: "Three front pages are waiting. Pick this year's headline in Office.", action: 'Office', go: nav.onOpenOffice };
 
-  const ready = Object.values(FIGHTS).find((f) => isFirstWin(s, f) && canChallenge(s, f));
-  if (ready)
-    return {
-      key: `fight:${ready.id}`,
-      text: `Challenge ${CHARACTERS[ready.leader]?.name} in ${AREAS[ready.area].name}. Losing costs nothing.`,
-      action: 'Turf War',
-      go: () => nav.onOpenArea(ready.area),
-    };
-
   // The purchase anywhere on the map that adds the most income per NT$.
   const best = bestBuy(s, openLots(s));
   const bestLot = best ? ALL_LOTS[best.lotId] : undefined;
@@ -172,17 +164,6 @@ function nextGoal(s: GameState, nav: { onOpenArea: (id: AreaId) => void; onOpenC
   if (s.safe > 0 && !s.run.accountant)
     return { key: 'safe', text: 'Income is waiting in your safe. Collect it to spend on properties.', action: 'Collect', go: () => void act(collectSafe) };
 
-  // Everything open is bought: name the next rival and the share it takes.
-  const allBought = !Object.values(ALL_LOTS).some((l) => !s.lots[l.id] && isAreaOpen(s, l.area) && !isLotLocked(s, l));
-  const next = Object.values(FIGHTS).find((f) => isAreaOpen(s, f.area) && isFirstWin(s, f));
-  if (allBought && next)
-    return {
-      key: `share:${next.id}`,
-      text: `Upgrade lots in ${AREAS[next.area].name} to ${Math.round(SHARE_THRESHOLDS[next.key] * 100)}% market share to challenge ${CHARACTERS[next.leader]?.name}.`,
-      action: 'View',
-      go: () => nav.onOpenArea(next.area),
-    };
-
   if (best && bestLot)
     return {
       key: `save:${best.lotId}`,
@@ -191,6 +172,61 @@ function nextGoal(s: GameState, nav: { onOpenArea: (id: AreaId) => void; onOpenC
       go: () => nav.onOpenArea(bestLot.area),
     };
   return null;
+}
+
+interface RivalGoal {
+  fight: FightDef;
+  ready: boolean;
+  /** 0–1 toward the fight's market-influence line (or the first property, for A-Biao). */
+  progress: number;
+  /** One short line on what's needed. */
+  need: string;
+}
+
+/** The rival you're working toward: the first unbeaten fight in an open district, ready ones first. */
+function nextRival(s: GameState): RivalGoal | null {
+  const open = Object.values(FIGHTS).filter((f) => isAreaOpen(s, f.area) && isFirstWin(s, f));
+  if (open.length === 0) return null;
+  const fight = open.find((f) => canChallenge(s, f)) ?? open[0]!;
+  const ready = canChallenge(s, fight);
+  const area = AREAS[fight.area].name;
+  if (fight.id === 'wanhua_lt1') {
+    return { fight, ready, progress: ready ? 1 : 0, need: ready ? 'Losing costs nothing.' : 'Buy your first Wanhua property to challenge him.' };
+  }
+  const line = SHARE_THRESHOLDS[fight.key];
+  const share = marketShare(s, fight.area);
+  return {
+    fight,
+    ready,
+    progress: Math.min(1, share / line),
+    need: ready ? 'Losing costs nothing.' : `Influence ${formatPercent(share)} of ${Math.round(line * 100)}% · buy and upgrade in ${area}`,
+  };
+}
+
+/** The next key milestone: who you fight next, and how close you are. */
+function NextRival({ goal, onGo }: { goal: RivalGoal; onGo: () => void }) {
+  const leader = CHARACTERS[goal.fight.leader];
+  const gang = FACTIONS[AREAS[goal.fight.area].rival];
+  return (
+    <section className="next-rival" data-ready={goal.ready} aria-label="Next rival" style={{ ['--c1' as string]: gang.colors[0] }}>
+      <Portrait id={goal.fight.leader} face className="next-rival-face" />
+      <div className="next-rival-body">
+        <span className="next-rival-kicker">
+          {goal.ready ? 'Ready to fight' : 'Next rival'} · {AREAS[goal.fight.area].name} {goal.fight.key === 'boss' ? 'boss' : 'lieutenant'}
+        </span>
+        <b>
+          {leader?.name} <span className="zh">{gang.crest}</span>
+        </b>
+        <span className="next-rival-bar" aria-hidden>
+          <i style={{ width: `${goal.progress * 100}%` }} />
+        </span>
+        <small>{goal.need}</small>
+      </div>
+      <button className="btn small next-rival-go" data-ready={goal.ready} onClick={onGo}>
+        {goal.ready ? 'FIGHT!' : 'View'}
+      </button>
+    </section>
+  );
 }
 
 function eventText(r: EventReward, fmt: 'cjk' | 'kmb'): string {
@@ -213,15 +249,16 @@ function eventText(r: EventReward, fmt: 'cjk' | 'kmb'): string {
 
 export function MapScreen({
   onOpenArea,
-  onOpenDraws,
   onOpenCrew,
   onOpenOffice,
+  onOpenFight,
   onLocked,
 }: {
   onOpenArea: (id: AreaId) => void;
-  onOpenDraws: () => void;
   onOpenCrew: () => void;
   onOpenOffice: () => void;
+  /** Opens a district straight onto a fight's prep screen. */
+  onOpenFight: (area: AreaId, fightId: string) => void;
   onLocked: (msg: string) => void;
 }) {
   const s = useGame();
@@ -235,14 +272,6 @@ export function MapScreen({
   // A halo in the map's own background color keeps labels readable where they cross lines and rivers.
   const halo = { stroke: night ? '#1a1240' : '#f1ead9', strokeWidth: 3.5, strokeLinejoin: 'round' as const, paintOrder: 'stroke' };
   const floors = towerFloors(s);
-  // The resource guide starts folded so the map stays the home screen; it remembers if you open it.
-  const [guideOpen, setGuideOpen] = useState(() => {
-    try {
-      return localStorage.getItem('taipei2004.resourceGuide') === 'open';
-    } catch {
-      return false;
-    }
-  });
   const [dismissed, setDismissed] = useState(() => {
     try {
       return localStorage.getItem('taipei2004.dismissedGoal') ?? '';
@@ -258,8 +287,8 @@ export function MapScreen({
       /* this visit only */
     }
   };
-  const rematch = Object.values(FIGHTS).find((f) => !isFirstWin(s, f) && rematchCooldown(s, f.id, now) === 0);
   const goal = nextGoal(s, { onOpenArea, onOpenCrew, onOpenOffice });
+  const rival = nextRival(s);
   const headline = s.run.headline;
   const fortune = fortuneToday(s, now);
 
@@ -313,6 +342,16 @@ export function MapScreen({
               ×
             </button>
           </section>
+        )}
+        {rival && (
+          <NextRival
+            goal={rival}
+            onGo={() => {
+              track('next_rival_opened', { fight: rival.fight.id, ready: rival.ready });
+              if (rival.ready) onOpenFight(rival.fight.area, rival.fight.id);
+              else onOpenArea(rival.fight.area);
+            }}
+          />
         )}
         <div className="map-title">
           <h1>
@@ -411,7 +450,23 @@ export function MapScreen({
                   )}
                   <circle cx={n.x} cy={n.y} r="14" fill={open ? (night ? '#fff' : '#fff') : night ? '#3a3168' : '#cfc8bb'} stroke={ink} strokeWidth="3.5" />
                   {open ? (
-                    <circle cx={n.x} cy={n.y} r="6" fill={color} />
+                    rival?.fight.area === n.id ? (
+                      // The next rival's district: a 戰 badge, pulsing red once the fight is ready.
+                      <g aria-hidden>
+                        {rival.ready && (
+                          <circle cx={n.x} cy={n.y} r="18" fill="none" stroke="#e8382f" strokeWidth="4">
+                            <animate attributeName="r" values="14;26;14" dur="1.4s" repeatCount="indefinite" />
+                            <animate attributeName="opacity" values="1;0;1" dur="1.4s" repeatCount="indefinite" />
+                          </circle>
+                        )}
+                        <circle cx={n.x} cy={n.y} r="11" fill={rival.ready ? '#e8382f' : color} stroke={ink} strokeWidth="1.5" />
+                        <text x={n.x} y={n.y + 4.5} textAnchor="middle" fontSize="12" fontWeight="900" fill="#fff" fontFamily="'Noto Serif TC', serif">
+                          戰
+                        </text>
+                      </g>
+                    ) : (
+                      <circle cx={n.x} cy={n.y} r="6" fill={color} />
+                    )
                   ) : (
                     <g transform={`translate(${n.x - 5} ${n.y - 6})`} fill={ink} opacity="0.7">
                       <rect x="0" y="5" width="10" height="7" rx="1.5" />
@@ -481,43 +536,6 @@ export function MapScreen({
         <p className="map-hint">
           {s.event ? 'Something is happening at a station! Tap the bubble before it moves on.' : 'Tap an open station to buy lots there. Each area belongs to a gang boss until you take it.'}
         </p>
-        <details className="resource-guide" open={guideOpen} onToggle={(e) => {
-          const open = e.currentTarget.open; setGuideOpen(open);
-          try { localStorage.setItem('taipei2004.resourceGuide', open ? 'open' : 'closed'); } catch { /* optional preference */ }
-        }}>
-          <summary>
-            <span>Resource guide</span>
-            <small>Where to earn & spend</small>
-          </summary>
-          <div className="resource-guide-body">
-            <p className="resource-guide-daily">
-              <strong>One free Temple draw every day.</strong> Its stick also sets the day's luck for street events.{' '}
-              {!s.zodiac ? 'Choose your zodiac in Draws to get started.'
-                : canDraw(s, 'temple', now).free ? 'Your free visit is ready in Draws.'
-                  : 'You’ve used today’s free visit. More draws cost incense money.'}
-            </p>
-            <div className="resource-actions">
-              <button className="btn secondary small" onClick={() => { track('resource_guide_action', { action: 'draws' }); onOpenDraws(); }}>{canDraw(s, 'temple', now).free ? 'Visit free Temple' : 'Open Draws'}</button>
-              {rematch && <button className="btn secondary small" onClick={() => { track('resource_guide_action', { action: 'rematch' }); onOpenArea(rematch.area); }}>Rewarded rematch: {AREAS[rematch.area].name}</button>}
-            </div>
-            <dl className="resource-guide-list">
-              <div>
-                <dt><span aria-hidden="true">刮</span> Scratch cards <small>{COST.scratch.amount} per scratch draw</small></dt>
-                <dd>Tap scratch-card street events on this map, repel {SHAKEDOWN_SCRATCH_EVERY} shakedowns, or win a Turf War rematch. Each fight pays rematch rewards once every {REMATCH_COOLDOWN_MS / 60_000} minutes.</dd>
-              </div>
-              <div>
-                <dt><span aria-hidden="true">香</span> Incense money <small>{COST.temple.amount} per Temple draw</small></dt>
-                <dd>Beat each lieutenant or boss for the first time in a run. Later, extra copies of cards already at ★5 become incense money.</dd>
-              </div>
-              <div>
-                <dt><span aria-hidden="true">樂</span> Lottery tickets <small>{COST.lottery.amount} ticket draws {LOTTERY_BALLS} cards</small></dt>
-                <dd>First boss wins each run, completing a collection page in Crew, and cashing out in Office.</dd>
-              </div>
-            </dl>
-            <p className="resource-guide-other"><strong>Cash:</strong> own and upgrade lots for steady income. <strong>XP:</strong> Turf War fights and repelled shakedowns. <strong>Face:</strong> cash out in Office for permanent upgrades.</p>
-            <p className="resource-guide-foot">Station percentages show properties owned. Rival challenges use market influence from buying and upgrading. Draw currencies carry over when you cash out.</p>
-          </div>
-        </details>
       </div>
     </div>
   );

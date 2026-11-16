@@ -21,6 +21,10 @@ import { CrewScreen } from './ui/screens/CrewScreen';
 import { DrawsScreen } from './ui/screens/DrawsScreen';
 import { MapScreen } from './ui/screens/MapScreen';
 import { OfficeScreen } from './ui/screens/OfficeScreen';
+import { HowToPlay } from './ui/components/HowToPlay';
+import { track } from './ui/analytics';
+
+const INTRO_KEY = 'taipei2004.intro';
 
 function describe(e: GameEvent, s: GameState): Omit<Toast, 'id'> | null {
   const fmt = s.settings.numberFormat;
@@ -36,7 +40,7 @@ function describe(e: GameEvent, s: GameState): Omit<Toast, 'id'> | null {
     case 'shakedown-unguarded':
       return { text: `Someone leaned on ${ALL_LOTS[e.lotId]?.name}. Post Security there to earn shakedown bonuses.` };
     case 'auto-bought':
-      return { tone: 'good', text: `Land Scout bought ${ALL_LOTS[e.lotId]?.name}.` };
+      return { tone: 'good', text: `Standing Orders bought ${ALL_LOTS[e.lotId]?.name}.` };
     case 'level-up':
       return { tone: 'good', text: `${CHARACTERS[e.charId]?.name} reached Lv ${e.level}!` };
     case 'commission':
@@ -51,8 +55,28 @@ function Game() {
   const saveHealth = useSyncExternalStore(subscribeSaveHealth, getSaveHealth);
   const [tab, setTab] = useState<Tab>('map');
   const [area, setArea] = useState<AreaId | null>(null);
+  /** A fight to open straight onto when entering a district from the map's FIGHT! button. */
+  const [areaFight, setAreaFight] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [away, setAway] = useState<AwaySummary | null>(null);
+  // "How it works" opens once on a brand-new game; after that it's behind the ? in the top bar.
+  const [help, setHelp] = useState(() => {
+    const st = store.get();
+    const fresh = st.meta.runs === 0 && Object.keys(st.lots).length === 0 && st.stats.lotsBought === 0;
+    try {
+      return fresh && localStorage.getItem(INTRO_KEY) !== 'seen';
+    } catch {
+      return fresh;
+    }
+  });
+  const closeHelp = () => {
+    setHelp(false);
+    try {
+      localStorage.setItem(INTRO_KEY, 'seen');
+    } catch {
+      /* shows again next time, which is fine */
+    }
+  };
   const screenRef = useRef<HTMLDivElement>(null);
 
   const toast = useCallback((text: string, tone?: Toast['tone']) => {
@@ -93,21 +117,51 @@ function Game() {
 
   return (
     <div className="phone">
-      <TopBar />
+      <TopBar
+        onHelp={() => {
+          track('help_opened');
+          setHelp(true);
+        }}
+      />
       {saveHealth.failed && <button className="save-warning" onClick={() => { setArea(null); setTab('office'); }}>Saving is unavailable. Tap to export a backup in Office.</button>}
       <main className="screen" ref={screenRef}>
         {tab === 'map' && !area && (
           <MapScreen
-            onOpenDraws={() => setTab('draws')}
             onOpenCrew={() => setTab('crew')}
             onOpenOffice={() => setTab('office')}
-            onOpenArea={setArea}
+            onOpenFight={(a, f) => {
+              setAreaFight(f);
+              setArea(a);
+            }}
+            onOpenArea={(a) => {
+              setAreaFight(null);
+              setArea(a);
+            }}
             onLocked={(m) => toast(m)}
           />
         )}
-        {tab === 'map' && area && <AreaScreen area={area} onBack={() => setArea(null)} onToast={toast} />}
+        {tab === 'map' && area && (
+          <AreaScreen
+            key={area}
+            area={area}
+            fightId={areaFight}
+            onBack={() => {
+              setArea(null);
+              setAreaFight(null);
+            }}
+            onToast={toast}
+          />
+        )}
         {tab === 'crew' && <CrewScreen />}
-        {tab === 'draws' && <DrawsScreen />}
+        {tab === 'draws' && (
+          <DrawsScreen
+            onOpenArea={(a) => {
+              setAreaFight(null);
+              setArea(a);
+              setTab('map');
+            }}
+          />
+        )}
         {tab === 'office' && <OfficeScreen onToast={toast} />}
       </main>
       <TabBar
@@ -115,12 +169,16 @@ function Game() {
         dots={dots}
         center={<SafeButton />}
         onTab={(t) => {
-          if (t === 'map' && tab === 'map') setArea(null);
+          if (t === 'map' && tab === 'map') {
+            setArea(null);
+            setAreaFight(null);
+          }
           setTab(t);
         }}
       />
       <Toasts toasts={toasts} />
       {away && <AwayModal summary={away} onClose={() => setAway(null)} />}
+      {help && !away && <HowToPlay onClose={closeHelp} />}
     </div>
   );
 }

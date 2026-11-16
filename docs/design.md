@@ -49,7 +49,7 @@ The mechanics are inspired by Yakuza 0's real estate minigame. All characters, g
 - Drag and pinch to move around. Station labels alternate above and below the line.
 - **On the map:** street-event icons at stations, Xiaoxiao Realty billboards, and an LED-sign news ticker.
 - **Layout:** the blue line bends southwest from Ximen down to Longshan Temple (Wanhua), as it does in real life. Labels sit on alternating sides so they never touch.
-- **Station labels:** the English name sits above a station-sign tag in the rival gang's color with the Chinese name on it, followed by the percentage of properties you own (each lot counts equally). Investment-weighted market influence is shown separately in the area screen for rival unlocks. Map text has a halo in the map's background color.
+- **Station labels:** the English name sits above a station-sign tag in the rival gang's color with the Chinese name on it, followed by the percentage of properties you own (each lot counts equally; the Xiaoxiao branch only counts once it's for sale, so owning everything you can buy reads 100%). Investment-weighted market influence is shown separately in the area screen for rival unlocks. Map text has a halo in the map's background color.
 - **Decorations:** 12 small illustrated stickers fill the empty corners (a palace hotel, a dragon boat, a garbage truck, scooters and so on). They are made by Codex in `map/`, sit under the stations, can't be tapped, and are darkened at night. A sticker whose art is missing is simply left out.
 - **Street-event bubbles:** each station has a fixed bubble spot clear of labels, lines and the map edge. The tail points at the station, and bubbles draw above the stations so a tap always reaches them.
 
@@ -150,7 +150,7 @@ The mechanics are inspired by Yakuza 0's real estate minigame. All characters, g
   - **Every candidate shows the real trade:** income added here, what the person they replace adds, and what's lost at the lot they'd leave, so the net on the right adds up. Role perks are said for that lot ("Nothing left to buy in Wanhua, so no discount").
   - **The best guard** is the weakest gangster who still meets the threat, which keeps stronger fighters free for tougher areas.
 - **Crew → Posts:** every lot you own by area, with its Manager and Security portraits. Empty slots and too-weak guards are highlighted, your top N earners are tagged, and free crew are listed at the bottom. Tapping a lot opens the same lot sheet and tips.
-- **Duty Roster (Face perk)** fills only empty slots with free crew. Visit empty manager posts by base income, biggest first; choose the free agent who adds the most income to each lot, including 店長 and Local bonuses. Each guard is the weakest one strong enough for that area. It never moves anyone the player posted.
+- **Duty Roster (Face perk, on when bought)** fills empty slots with free crew. Visit empty manager posts by base income, biggest first; choose the free agent who adds the most income to each lot, including 店長 and Local bonuses. Each guard is the weakest one strong enough for that area. **When a new character joins**, it re-shuffles the posts it filled itself (it remembers them) so the newcomer can take the job they're best at. It never moves anyone the player posted by hand.
 - **No auto-optimize for players.** "Optimize everyone" is a dev tool only.
 - **Dev tools** (the Office dev panel and the speed pill) exist only in dev builds. Production builds strip them out of the bundle entirely.
 
@@ -188,11 +188,10 @@ Rivals periodically lean on your lots in their area.
 ### Automation (each step is unlocked)
 1. Tap the safe to collect.
 2. An accountant collects automatically while the game is open.
-3. Auto-upgrade per area (**Standing Orders**): takes the best buy among your lots there, one level at a time, and waits for it rather than spending on something worse.
-4. Auto-buy the cheapest lot.
-5. Auto-assign the best staff.
+3. **Standing Orders** (Land Scout merged in, 2026-11-16): one switch in Office. Half of what you earn while the game is open is set aside as its budget (never more than your cash plus the safe), and it spends that on the best buy anywhere, new lots and upgrades alike, one level at a time. It waits for the best buy only when its budget will cover it within 15 seconds; otherwise it takes the best buy it can afford now, so it never sits idle for minutes (fixed 2026-11-16 after it stalled late in a run). Office shows what it's buying or saving for, and says when its budget is waiting in the safe. **Focus on the next rival** (a second switch) sends it to the next rival's district (the one on the map's Next rival card) until that fight is ready, then back to the best buy anywhere; that district's screen says so.
+4. **Duty Roster:** keeps posts staffed (see Staff).
 
-Steps 1–2 unlock during a run. Steps 3–5 are permanent Face upgrades, each with an on/off switch (auto-upgrade is switched per area). Automation only runs while the game is open.
+Steps 1–2 unlock during a run. Steps 3–4 are permanent Face upgrades, each with an on/off switch that starts on when you buy it. Automation only runs while the game is open. Saves from before v9: owning Land Scout or Standing Orders now means owning Standing Orders (switched on); owning both refunds Land Scout's 20 Face.
 
 ### Street events (optional pop-ups on map stations)
 - **Temple procession:** tap for a bonus.
@@ -309,6 +308,7 @@ Steps 1–2 unlock during a run. Steps 3–5 are permanent Face upgrades, each w
 - **Scene:** the district's paving (its own two tones, a centre lane and slab edges, drawn in 2px steps so edges stair-step like pixel art), darkened at night. Above it, the district's scene in pixel art: the area art cropped to 5:4, shrunk to 130×104 and cut to 32 colours by `npm run art`, drawn at about 3× with hard pixels over a sky gradient.
 - **Fighters:** each is its 64 px PixelLab sprite (one still image, facing south-east; rivals are mirrored to face your crew). Until a character's sprite exists, their card stands on the plinth instead. Every fighter has an iso plinth in its side's colour, a shadow, and HP, shield and (yours) skill-charge bars.
 - **Motion, all in code:** an attacker dashes part-way to its target and back; a hit flashes the target and knocks it back away from the attacker, with pixel sparks; skills without a target hop; a KO tips the fighter flat; called-in runners drop in from above; an active shield is a cyan ring on the floor; sprites bob on an idle beat. Damage numbers are in the pixel font, and big 漢字 impact text (砰! 爆! 勝!) and the ultimate card stay. Reduced motion turns the movement off.
+- **Pacing (slowed 2026-11-16 so fights are readable):** at the default 2× a dash takes about 0.5 s (out, a beat at the target, back), a hit 0.44 s with only the first 40% as a bright flash, a KO tip-over 0.65 s, and damage numbers rise for 1.1 s. Motion scales with battle speed: ×1.4 at 1×, ×0.7 at 4×, ×0.5 at 8×.
 - **Grunts** share the `street_punk` sprite washed in their gang's colour (the accent colour when the main one is near black, as with Molong).
 - **Manual mode:** tap a glowing fighter to fire its skill.
 
@@ -351,7 +351,9 @@ The **free daily Temple stick** sets that day’s street-event rate: N **×1.25*
 
 ### Currencies (never reset)
 
-The Map includes a compact one-row **next-step tip** above the map (challenge a ready rival, buy an affordable lot, post a free agent, collect the safe, save toward the next lot, or reach the next rival's share). It hides when there's nothing useful to suggest, and dismissing one tip is remembered. Below the stations, a collapsible **Resource guide** starts folded and remembers if you open it. It links to Draws and an available rewarded rematch. It explains draw costs, currency sources and reward timing, highlights whether the daily free Temple visit is ready, and briefly covers cash, XP and Face. English labels accompany the decorative currency glyphs.
+The Map includes a compact one-row **next-step tip** above the map (see §6 for its order). It hides when there's nothing useful to suggest, and dismissing one tip is remembered. The **Resource guide** lives on the Draws page, below the machines (moved off the map 2026-11-16): a collapsible section that starts folded and remembers if you open it. It links to an available rewarded rematch, explains draw costs, currency sources and reward timing, says whether the daily free Temple visit is ready, and briefly covers cash, XP and Face. English labels accompany the decorative currency glyphs.
+
+**How it works (玩法):** a short sheet with one line per system (map, lots, safe, crew, Turf Wars, draws, Office), each with a decorative 漢字 badge. It opens once on a brand-new game, and any time from the **?** button in the top bar.
 
 | Currency | Earned from |
 |---|---|
@@ -422,12 +424,12 @@ No real money anywhere.
 - Headline and commission sizes are new values; they get tuned in the balance pass. Values live in `constants.ts` (Run variety).
 
 ### Face upgrade tree
-Four branches, 18 upgrades (most with several levels), with costs that rise as you buy more. Defined in `src/game/content/face.ts`:
+Four branches, 17 upgrades (most with several levels), with costs that rise as you buy more. Defined in `src/game/content/face.ts`:
 
 | Branch | Upgrades |
 |---|---|
 | Business 生意 | Good Name: income +25%/level (20) · Hard Bargain: lots −5%/level (5) · Contractor Friends: upgrades −4%/level (5) · Seed Money: start cash ×10/level (6) · Old Turf: start with 2 Wanhua lots at Lv 10 per level (3) |
-| Idle 閒 | Bigger Safe: +2 h/level, 4 → 24 h (10) · Bookkeeper on Staff · Duty Roster (auto-staff) · Standing Orders (auto-upgrade per area) · Land Scout (auto-buy) |
+| Idle 閒 | Bigger Safe: +2 h/level, 4 → 24 h (10) · Bookkeeper on Staff · Duty Roster (auto-staff) · Standing Orders (auto-buy and auto-upgrade; Land Scout merged in) |
 | Muscle 拳頭 | Training: army stats +10%/level (20) · Presence: ultimates charge 15%/level faster (3) · Local Hero: Home Turf +2% per Security per level (5) · Warmed Up: skills start 15%/level charged (4) |
 | Network 人脈 | Street Smarts: events 25%/level more often (3) · Lucky Hands: scratch SR +1.5%, SSR +0.5% per level (3) · Temple Regular: Turf War incense +50%/level (3) · Market Buzz: index grows 25%/level faster (4) |
 
@@ -457,7 +459,8 @@ Turf Wars launch from an area screen.
 
 ### Screens
 - **Map:** the metro map with a status bar (cash, income per second, clock with ☀/🌙), red dots for anything worth tapping, and street-event icons.
-  - **Next-step tip** (one at a time, dismissable): front pages waiting to be picked → a first-win fight that's ready → an affordable best buy → a free agent with an empty Manager slot → income waiting in the safe → if every open lot is bought, the market share the next rival needs → how much more to save for the best buy.
+  - **Next-step tip** (one at a time, dismissable), for money moves: front pages waiting to be picked → an affordable best buy → a free agent with an empty Manager slot → income waiting in the safe → how much more to save for the best buy.
+  - **Next rival card** (under the tip): the key milestone. It shows the first unbeaten rival in an open district (a ready one first): portrait, district and rank, and a bar of market influence against the fight's line ("Influence 18% of 25% · buy and upgrade in Wanhua"; for A-Biao, the first Wanhua property). When the fight is ready the card glows and **FIGHT!** opens that fight's prep screen directly. That district's station shows a 戰 badge, pulsing red once the fight is ready.
 - **The safe** is a raised button in the middle of the tab bar, so it never covers the lot buttons.
 - **Area screen:** an illustrated banner (day/night), a property-ownership count and bar, a fold-out market-influence explanation/bar, and fight buttons at 25/50/75% influence (A-Biao unlocks after the first property), the buy-amount toggle, and a list of lot cards (icon, name, ☀/🌙, level, income, (M)(S) staff slots, upgrade button). Tapping a lot opens a bottom sheet for staffing and details.
 - **Turf War:** prep → battle → results.

@@ -36,8 +36,7 @@ export const FACE_UPGRADES: FaceUpgrade[] = [
   { id: 'safe', branch: 'idle', name: 'Bigger Safe', zh: '大保險箱', max: 10, base: 2, growth: 1.6, effect: (l) => `Safe holds ${4 + 2 * l} hours` },
   { id: 'bookkeeper', branch: 'idle', name: 'Bookkeeper on Staff', zh: '常駐會計', max: 1, base: 6, growth: 1, effect: (l) => (l ? 'The bookkeeper is hired from the start of every run' : 'Hire the bookkeeper from the start of every run') },
   { id: 'auto_staff', branch: 'idle', name: 'Duty Roster', zh: '排班表', max: 1, base: 8, growth: 1, effect: () => 'Auto-fills empty Manager and Security slots with free crew: best managers on your biggest earners, and guards just strong enough for each area' },
-  { id: 'auto_upgrade', branch: 'idle', name: 'Standing Orders', zh: '自動加碼', max: 1, base: 12, growth: 1, effect: () => 'Auto-upgrade: a switch on each area keeps buying its cheapest upgrade' },
-  { id: 'auto_buy', branch: 'idle', name: 'Land Scout', zh: '探地', max: 1, base: 20, growth: 1, effect: () => 'Auto-buy: buys the cheapest open lot as soon as you can afford it' },
+  { id: 'auto_upgrade', branch: 'idle', name: 'Standing Orders', zh: '自動加碼', max: 1, base: 12, growth: 1, effect: () => 'Half of what you earn goes to the best buy anywhere, new lots and upgrades alike. One switch in Office' },
   // Muscle 拳頭
   { id: 'training', branch: 'muscle', name: 'Training', zh: '練兵', max: 20, base: 2, growth: 1.6, effect: (l) => `Turf War stats +${pct(0.1 * l)}` },
   { id: 'command', branch: 'muscle', name: 'Presence', zh: '威望', max: 3, base: 6, growth: 2.2, effect: (l) => `Commander ultimates charge ${pct(0.15 * l)} faster` },

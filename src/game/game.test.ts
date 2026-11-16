@@ -236,16 +236,26 @@ describe('saves', () => {
 describe('ownership versus market influence', () => {
   it('counts the first property visibly and never loses ownership from upgrades or rival unlocks', () => {
     let s = must(buyLot(rich(initialState(NOW)), 'w1'));
-    expect(lotOwnership(s, 'wanhua')).toEqual({ owned: 1, total: 9, fraction: 1 / 9 });
+    expect(lotOwnership(s, 'wanhua')).toEqual({ owned: 1, total: 8, fraction: 1 / 8 });
     const before = marketShare(s, 'wanhua');
     s = must(upgradeLot(s, 'w1', 2));
-    expect(lotOwnership(s, 'wanhua').fraction).toBe(1 / 9);
+    expect(lotOwnership(s, 'wanhua').fraction).toBe(1 / 8);
     expect(marketShare(s, 'wanhua')).toBeGreaterThan(before);
     const upgraded = marketShare(s, 'wanhua');
     s = { ...s, areas: { ...s.areas, wanhua: { ...s.areas.wanhua, lt1: true } } };
     expect(marketShare(s, 'wanhua')).toBe(upgraded);
     s = must(buyLot(s, 'w2'));
-    expect(lotOwnership(s, 'wanhua').fraction).toBe(2 / 9);
+    expect(lotOwnership(s, 'wanhua').fraction).toBe(2 / 8);
     expect(marketShare(s, 'wanhua')).toBeGreaterThan(upgraded);
+  });
+
+  it('reads 100% once every lot you can buy is yours, until the Xiaoxiao branch goes on sale', () => {
+    const base = initialState(NOW);
+    const owned = Object.fromEntries(AREAS.wanhua.lots.filter((l) => l.lock !== 'xiaoxiao').map((l) => [l.id, { level: 1, invested: l.price }]));
+    let s: GameState = { ...base, lots: owned, areas: { ...base.areas, wanhua: { lt1: true, lt2: true, boss: true } } };
+    expect(lotOwnership(s, 'wanhua')).toEqual({ owned: 8, total: 8, fraction: 1 });
+    // Beating Xindian's second lieutenant puts every Xiaoxiao branch on sale: one more lot to buy.
+    s = { ...s, areas: { ...s.areas, xindian: { lt1: true, lt2: true, boss: false } } };
+    expect(lotOwnership(s, 'wanhua')).toEqual({ owned: 8, total: 9, fraction: 8 / 9 });
   });
 });

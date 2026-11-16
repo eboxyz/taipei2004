@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buyLot } from './actions';
-import { autoBuy, autoStaff, autoUpgrade, automate } from './auto';
+import { autoStaff, automate, dutyRoster, ordersScope, standingOrders } from './auto';
 import { ALL_LOTS, AREAS } from './content/areas';
 import { FIGHTS } from './content/fights';
 import { CLAIM_INDEX, FACE_DIVISOR, START_CASH } from './constants';
@@ -172,31 +172,78 @@ describe('claims', () => {
 });
 
 describe('automation', () => {
-  it('auto-buy picks the cheapest open lot', () => {
-    const s = { ...initialState(NOW), cash: 1e6 };
-    const r = autoBuy(s);
-    expect(Object.keys(r.state.lots)).toEqual(['w1']);
+  const orders = (s: GameState, budget: number): GameState => ({
+    ...s,
+    meta: { ...s.meta, upgrades: { ...s.meta.upgrades, auto_upgrade: 1 } },
+    auto: { ...s.auto, orders: true, budget },
+  });
+
+  it('Standing Orders buys new lots too: the best buy anywhere', () => {
+    const r = standingOrders(orders({ ...initialState(NOW), cash: 1e5 }, 1e5));
+    expect(Object.keys(r.state.lots)).toContain('w1');
     expect(r.events[0]).toEqual({ kind: 'auto-bought', lotId: 'w1' });
   });
 
-  it('auto-upgrade spends on the cheapest upgrades in its area', () => {
-    const s = { ...withLots(['w1', 'w2']), cash: 2e5 };
-    const r = autoUpgrade(s, 'wanhua');
-    expect(r.state.lots.w1!.level).toBeGreaterThan(1);
-    expect(r.state.cash).toBeLessThan(2e5);
+  it('Standing Orders only spends its budget: half of what you earn', () => {
+    const s = orders({ ...withLots(['w1', 'w2']), cash: 1e6 }, 0);
+    expect(standingOrders(s).state.lots).toEqual(s.lots);
+    const r = automate(s, 4e5);
+    expect(r.state.cash).toBeGreaterThanOrEqual(1e6 - 2e5);
+    expect(r.state.cash).toBeLessThan(1e6);
   });
 
-  it('auto-staff fills empty slots with free crew', () => {
+  it('focus spends in the next rival’s district until that fight is ready', () => {
+    const base = withLots(['w1', 'w2', 'w3']);
+    const s = orders({ ...base, cash: 1e9, areas: { ...base.areas, wanhua: { lt1: true, lt2: true, boss: true } } }, 1e9);
+    expect(ordersScope(s).area).toBeNull();
+    const focused = { ...s, auto: { ...s.auto, focus: true } };
+    expect(ordersScope(focused).area).toBe('ximending');
+    const r = standingOrders(focused, 1);
+    expect(Object.keys(r.state.lots).some((id) => ALL_LOTS[id]!.area === 'ximending')).toBe(true);
+  });
+
+  it('nothing runs without the Face upgrade and the switch', () => {
+    const s = { ...initialState(NOW), cash: 1e6, auto: { ...initialState(NOW).auto, orders: true, budget: 1e6 } };
+    expect(automate(s).state.lots).toEqual({});
+    expect(Object.keys(automate(orders(s, 1e6)).state.lots)).toContain('w1');
+    expect(automate({ ...orders(s, 1e6), auto: { ...orders(s, 1e6).auto, orders: false } }).state.lots).toEqual({});
+  });
+
+  it('Duty Roster fills empty slots with free crew', () => {
     const s = autoStaff(withLots(['w1']));
     expect(s.lots.w1!.manager).toBe('a_cai');
     expect(['hai_shu', 'a_di']).toContain(s.lots.w1!.security);
   });
 
-  it('nothing runs without the Face upgrade and the switch', () => {
-    const s = { ...initialState(NOW), cash: 1e6, auto: { upgrade: [], buy: true, staff: true } };
-    expect(automate(s).state.lots).toEqual({});
-    const unlocked = { ...s, meta: { ...s.meta, upgrades: { auto_buy: 1 } } };
-    expect(Object.keys(automate(unlocked).state.lots)).toEqual(['w1']);
+  it('Duty Roster re-shuffles its own posts for a newcomer, never yours', () => {
+    const roster = (s: GameState): GameState => ({ ...s, meta: { ...s.meta, upgrades: { ...s.meta.upgrades, auto_staff: 1 } }, auto: { ...s.auto, staff: true } });
+    let s = dutyRoster(roster(withLots(['w1', 'w2'])));
+    expect(s.lots.w2!.manager).toBe('a_cai');
+    // A much stronger agent joins: the roster moves its own pick so the newcomer runs the bigger earner.
+    s = dutyRoster({ ...s, characters: { ...s.characters, coco: { level: 20, xp: 0, stars: 1 } } });
+    expect(s.lots.w2!.manager).toBe('coco');
+    expect(s.lots.w1!.manager).toBe('a_cai');
+    // A post you set by hand stays put.
+    let mine = roster(withLots(['w1', 'w2']));
+    mine = { ...mine, lots: { ...mine.lots, w2: { ...mine.lots.w2!, manager: 'a_cai' } }, auto: { ...mine.auto, rosterSeen: Object.keys(mine.characters).length } };
+    mine = dutyRoster({ ...mine, characters: { ...mine.characters, coco: { level: 20, xp: 0, stars: 1 } } });
+    expect(mine.lots.w2!.manager).toBe('a_cai');
+    expect(mine.lots.w1!.manager).toBe('coco');
+  });
+
+  it('save v9: Land Scout folds into Standing Orders, and owning both refunds its Face', () => {
+    const s = initialState(NOW);
+    const old = (upgrades: Record<string, number>) =>
+      migrate(JSON.parse(JSON.stringify({ ...s, version: 8, meta: { ...s.meta, face: 5, upgrades }, auto: { upgrade: ['wanhua'], buy: true, staff: false } })), NOW)!;
+    const scoutOnly = old({ auto_buy: 1 });
+    expect(scoutOnly.meta.upgrades).toEqual({ auto_upgrade: 1 });
+    expect(scoutOnly.auto.orders).toBe(true);
+    expect(scoutOnly.meta.face).toBe(5);
+    const both = old({ auto_buy: 1, auto_upgrade: 1 });
+    expect(both.meta.upgrades).toEqual({ auto_upgrade: 1 });
+    expect(both.meta.face).toBe(25);
+    expect('upgrade' in both.auto).toBe(false);
+    expect(old({}).auto.orders).toBe(false);
   });
 });
 
@@ -227,7 +274,7 @@ describe('saves', () => {
     const s = migrate(JSON.parse(JSON.stringify(v3)), NOW)!;
     expect(s.meta.claimedEver).toEqual(['wanhua']);
     expect(s.meta.upgrades).toEqual({});
-    expect(s.auto).toEqual({ upgrade: [], buy: false, staff: false });
+    expect(s.auto).toEqual({ orders: false, focus: false, budget: 0, staff: false, placed: [], rosterSeen: Object.keys(s.characters).length });
     expect(canCashOut(s)).toBe(true);
   });
 });

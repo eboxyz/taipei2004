@@ -18,8 +18,8 @@ export const perk = {
   safeHours: (s: GameState) => 2 * faceLevel(s, 'safe'),
   bookkeeper: (s: GameState) => faceLevel(s, 'bookkeeper') > 0,
   autoStaff: (s: GameState) => faceLevel(s, 'auto_staff') > 0,
-  autoUpgrade: (s: GameState) => faceLevel(s, 'auto_upgrade') > 0,
-  autoBuy: (s: GameState) => faceLevel(s, 'auto_buy') > 0,
+  /** Standing Orders (auto-buy and auto-upgrade, merged in v9). */
+  standingOrders: (s: GameState) => faceLevel(s, 'auto_upgrade') > 0,
   training: (s: GameState) => 0.1 * faceLevel(s, 'training'),
   ultCharge: (s: GameState) => 0.15 * faceLevel(s, 'command'),
   homeTurf: (s: GameState) => 0.03 + 0.02 * faceLevel(s, 'home_turf'),

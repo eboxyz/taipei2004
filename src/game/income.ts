@@ -108,15 +108,18 @@ function lotBuys(state: GameState, lot: LotDef, total: number): Buy[] {
  * Ties go to the cheaper one.
  */
 export function bestBuy(state: GameState, lots: LotDef[], opts: { upgradesOnly?: boolean } = {}): Buy | null {
+  return buyOptions(state, lots, opts)[0] ?? null;
+}
+
+/** Every purchase among these lots, best value (income per NT$) first; ties go to the cheaper one. */
+export function buyOptions(state: GameState, lots: LotDef[], opts: { upgradesOnly?: boolean } = {}): Buy[] {
   const total = incomePerSec(state, 'average');
-  let best: Buy | null = null;
+  const all: Buy[] = [];
   for (const lot of lots) {
     if (opts.upgradesOnly && !state.lots[lot.id]) continue;
-    for (const b of lotBuys(state, lot, total)) {
-      if (!best || buyValue(b) > buyValue(best) || (buyValue(b) === buyValue(best) && b.cost < best.cost)) best = b;
-    }
+    all.push(...lotBuys(state, lot, total));
   }
-  return best;
+  return all.sort((p, q) => buyValue(q) - buyValue(p) || p.cost - q.cost);
 }
 
 /** Every lot in the districts that are open now. */

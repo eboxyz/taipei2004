@@ -1,7 +1,7 @@
 /** Tuning knobs. Change these, then run `npm run sim` to check pacing. */
 import type { Rarity } from './types';
 
-export const SAVE_VERSION = 8;
+export const SAVE_VERSION = 9;
 
 /** Upgrade cost multiplier per level. */
 export const UPGRADE_GROWTH = 1.17;
@@ -120,6 +120,11 @@ export const REARMED_FACE_PER_WIN = 1;
 export const REARMED_INCENSE_MULT = 2;
 
 export const COMMISSIONS_PER_RUN = 3;
+
+/** Standing Orders: the share of what you earn (while the game is open) it may spend. */
+export const ORDERS_SHARE = 0.5;
+/** Standing Orders waits this many seconds of budget for the best buy; longer, and it takes the best one it can afford now. */
+export const ORDERS_WAIT_S = 15;
 /** Fast Ximending: claim it within this much game time of the run starting. */
 export const FAST_XIMENDING_MS = 2 * 60 * 60_000;
 

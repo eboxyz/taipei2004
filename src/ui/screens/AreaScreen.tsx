@@ -26,6 +26,7 @@ import {
 } from '../../game/economy';
 import { formatMoney, formatPercent } from '../../game/format';
 import { bestBuy, mostlyIndex, type Buy } from '../../game/income';
+import { ordersScope } from '../../game/auto';
 import { IncomeSources } from '../components/Income';
 import { lotsLeftToBuy, slotAdvice } from '../../game/staffing';
 import type { AreaId, BuyMode, FightKey, GameState, LotDef, Phase } from '../../game/types';
@@ -137,7 +138,6 @@ const TWIST: Partial<Record<AreaId, string>> = {
 function AreaTwist({ area }: { area: AreaId }) {
   const s = useGame();
   const now = useNow(1000);
-  const autoOn = s.auto.upgrade.includes(area);
   const hot = area === 'east' ? CATEGORIES[s.hot ?? hotCategory(now)] : null;
   const minsLeft = Math.ceil(24 - gameHour(now));
   return (
@@ -149,22 +149,8 @@ function AreaTwist({ area }: { area: AreaId }) {
       ) : (
         TWIST[area] && <p className="twist">{TWIST[area]}</p>
       )}
-      {perk.autoUpgrade(s) && (
-        <label className="switch-row auto-row">
-          <span>
-            <b>Standing Orders 自動加碼</b> keep taking the best-value upgrade here
-          </span>
-          <input
-            type="checkbox"
-            checked={autoOn}
-            onChange={() =>
-              update((st) => ({
-                ...st,
-                auto: { ...st.auto, upgrade: autoOn ? st.auto.upgrade.filter((a) => a !== area) : [...st.auto.upgrade, area] },
-              }))
-            }
-          />
-        </label>
+      {perk.standingOrders(s) && s.auto.orders && ordersScope(s).area === area && (
+        <p className="twist orders-focus">Standing Orders 自動加碼 are focused here until the next rival's fight is ready.</p>
       )}
     </>
   );
@@ -444,7 +430,18 @@ export function LotSheet({ lotId, onClose }: { lotId: string; onClose: () => voi
   );
 }
 
-export function AreaScreen({ area, onBack, onToast }: { area: AreaId; onBack: () => void; onToast: (text: string, tone?: 'good' | 'warn') => void }) {
+export function AreaScreen({
+  area,
+  fightId,
+  onBack,
+  onToast,
+}: {
+  area: AreaId;
+  /** Open straight onto this fight's prep screen (from the map's FIGHT! button). */
+  fightId?: string | null;
+  onBack: () => void;
+  onToast: (text: string, tone?: 'good' | 'warn') => void;
+}) {
   const def = AREAS[area];
   const now = useNow(1000);
   const phase = phaseAt(now);
@@ -453,7 +450,7 @@ export function AreaScreen({ area, onBack, onToast }: { area: AreaId; onBack: ()
   const best = bestBuy(s, def.lots);
   const setMode = (buyMode: BuyMode) => update((st) => ({ ...st, settings: { ...st.settings, buyMode } }));
   const [open, setOpen] = useState<string | null>(null);
-  const [fight, setFight] = useState<string | null>(null);
+  const [fight, setFight] = useState<string | null>(fightId ?? null);
   if (def.lots.length === 0) {
     return (
       <div>

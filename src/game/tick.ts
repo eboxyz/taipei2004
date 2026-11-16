@@ -108,7 +108,7 @@ export function tick(state: GameState, dt: number, now: number, rng: Rng = Math.
   s = addIncome(s, income, s.run.accountant);
 
   s = tickEvents(s, dt, rng, now);
-  const auto = automate(s);
+  const auto = automate(s, income);
   s = auto.state;
   events.push(...auto.events);
 

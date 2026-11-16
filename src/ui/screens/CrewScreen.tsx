@@ -219,7 +219,7 @@ function CardsView({ open, setOpen, unique, steps, nextAt }: { open: string | nu
           </p>
         </div>
       </div>
-      {BINDER_PAGES.map((page) => {
+      {BINDER_PAGES.filter((page) => page.faction !== 'xiaoxiao' || s.meta.chapterClears > 0).map((page) => {
         const members = pageMembers(page.faction);
         const have = members.filter((m) => s.characters[m.id]).length;
         const done = isPageComplete(s, page.faction);

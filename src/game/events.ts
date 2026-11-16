@@ -53,7 +53,7 @@ export function tickEvents(state: GameState, dt: number, rng: Rng, now?: number)
   if (eventIn <= 0) {
     eventIn = nextEventDelay(state, rng, now);
     if (!event) {
-      const open = AREA_ORDER.filter((a) => isAreaOpen(state, a) && a !== 'xindian');
+      const open = AREA_ORDER.filter((a) => isAreaOpen(state, a));
       const area = open[Math.floor(rng() * open.length)] ?? 'wanhua';
       const kind = pickKind(state, rng);
       event = { id: Math.floor(rng() * 1e9), area, kind, xiaoxiao: kind === 'tip' && rng() < 0.35, expiresIn: EVENT_LIFETIME_S };

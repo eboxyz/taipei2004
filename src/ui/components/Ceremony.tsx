@@ -103,3 +103,19 @@ export function Fireworks({ full, onClose }: { full: boolean; onClose: () => voi
     host(),
   );
 }
+
+/** Secret chapter's short, text-light completion celebration. */
+export function NewTaipeiCelebration({ full, onClose }: { full: boolean; onClose: () => void }) {
+  const art = artUrl('key', 'new_taipei');
+  return createPortal(
+    <div className="fireworks new-taipei" role="dialog" aria-modal="true" aria-label="Xindian complete">
+      {art && <img className="fireworks-art" src={art} alt="Bitan riverside illuminated for the New Taipei celebration" />}
+      <div className="fireworks-text">
+        <span className="countdown">25 DEC 2010</span>
+        <h2>新北市<small>New Taipei City</small></h2>
+        <p>{full ? 'Xindian is yours. A new city, a fresh start.' : 'Xindian is yours again.'}</p>
+        <button className="btn" onClick={onClose}>Keep building</button>
+      </div>
+    </div>, host(),
+  );
+}

@@ -5128,3 +5128,6 @@ textarea.save-box {
   color: #fff;
   font-family: var(--font-sign);
 }
+
+.new-taipei .fireworks-art { opacity: 0.85; }
+.new-taipei .fireworks-text { padding-bottom: max(28px, env(safe-area-inset-bottom)); }

@@ -24,4 +24,4 @@ A mobile-browser idle/incremental game set in 2000s Taipei. The mechanics are in
 - **No text in art files.** All text is rendered in code.
 - Source art goes in `art/source/<category>/<id>.png`. A processing script makes the final sizes. Missing art shows a placeholder.
 - **Codex** generates illustrated art from `art/BRIEF.md` and only writes to `art/source/`.
-- **PixelLab** is on the free tier. Use it only for the icons in `art/PIXELLAB.md`, essential ones first.
+- **PixelLab** is on the free tier. Use it only for the icons in `art/PIXELLAB.md` and the battle sprites in `art/SPRITES.md`, in the order listed.

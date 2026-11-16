@@ -9,7 +9,7 @@ const wanhuaLots: LotDef[] = [
   { id: 'w6', area: 'wanhua', name: 'Bopiliao Herb Hall', nameZh: '剝皮寮藥行', category: 'herbal_shop', price: 2.4e7, income: 5.3e4 },
   { id: 'w7', area: 'wanhua', name: 'Moonlit Tea House', nameZh: '月下茶室', category: 'tea_house', price: 6e7, income: 4e4, lock: 'lt1' },
   { id: 'w8', area: 'wanhua', name: 'Longshan Inn', nameZh: '龍山旅社', category: 'old_inn', price: 2e8, income: 8e4, lock: 'lt2' },
-  { id: 'w9', area: 'wanhua', name: 'Xiaoxiao Realty', nameZh: '笑笑房屋', category: 'xiaoxiao_branch', price: 4e7, income: 0, lock: 'xiaoxiao' },
+  { id: 'w9', area: 'wanhua', name: 'Xiaoxiao Realty', nameZh: '笑笑房屋', category: 'xiaoxiao_branch', price: 4e7, income: 2.65e4, lock: 'xiaoxiao' },
 ];
 
 /**
@@ -27,7 +27,8 @@ function areaLots(area: AreaId, priceFactor: number, incomeFactor: number, specs
   return specs.map(([id, name, nameZh, category, lock], i) => {
     const w = wanhuaLots[i]!;
     const price = Number((w.price * scale * priceFactor).toPrecision(2));
-    const income = lock === 'xiaoxiao' ? 0 : Number(((w.income * scale * incomeFactor) / SLOWDOWN[area]).toPrecision(2));
+    const baseIncome = lock === 'xiaoxiao' ? wanhuaLots[5]!.income / 2 : w.income;
+    const income = Number(((baseIncome * scale * incomeFactor) / SLOWDOWN[area]).toPrecision(2));
     return { id, area, name, nameZh, category, price, income, ...(lock ? { lock } : {}) };
   });
 }
@@ -82,6 +83,19 @@ const xinyiLots = areaLots('xinyi', 1.5, 1.5, [
   ['y7', 'City Hall Annex', '市府旁辦公大樓', 'office_tower', 'lt1'],
   ['y8', 'Steel Frame Condo', '鋼骨豪宅', 'luxury_condo', 'lt2'],
   ['y9', 'Xiaoxiao Realty', '笑笑房屋', 'xiaoxiao_branch', 'xiaoxiao'],
+]);
+
+// Xindian: commuter homes keep earning extra while the player is away.
+const xindianLots = areaLots('xindian', 1, 1, [
+  ['n1', 'Station Breakfast Shop', '車站早餐店', 'food_stall'],
+  ['n2', 'Bitan Riverside Café', '碧潭咖啡', 'cafe'],
+  ['n3', 'Commuter Apartments', '通勤公寓', 'commuter_home'],
+  ['n4', 'Riverside Residences', '河岸住宅', 'commuter_home'],
+  ['n5', 'Hillside Apartments', '山城公寓', 'commuter_home'],
+  ['n6', 'South Line Offices', '南線辦公室', 'office_tower'],
+  ['n7', 'Bitan Guesthouse', '碧潭旅舍', 'business_hotel', 'lt1'],
+  ['n8', 'Sunny Courtyard Homes', '向陽庭院', 'commuter_home', 'lt2'],
+  ['n9', 'Xiaoxiao Headquarters', '笑笑總部', 'xiaoxiao_branch', 'xiaoxiao'],
 ]);
 
 export const AREAS: Record<AreaId, AreaDef> = {
@@ -165,16 +179,16 @@ export const AREAS: Record<AreaId, AreaDef> = {
     id: 'xindian',
     name: 'Xindian',
     nameZh: '新店',
-    flavor: '???',
+    flavor: 'Commuter towers, riverside cafés, and a smile on every corner.',
     station: 'Xindian',
     stationZh: '新店',
     rival: 'xiaoxiao',
     threat: 1200,
     rivalBase: 3e18,
     lt1Id: 'xiaoxiao_agent',
-    lt2Id: 'xiaoxiao_agent',
-    bossId: 'xiaoxiao_agent',
-    lots: [],
+    lt2Id: 'a_yin',
+    bossId: 'xiao_dong',
+    lots: xindianLots,
     secret: true,
   },
 };

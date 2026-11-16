@@ -19,6 +19,7 @@ export const BINDER_PAGES: BinderPage[] = [
   { faction: 'yuejian', bonus: { kind: 'area_income', area: 'zhongshan', amount: 0.1 }, text: 'Zhongshan lots earn 10% more' },
   { faction: 'jintangchi', bonus: { kind: 'area_income', area: 'east', amount: 0.1 }, text: 'East District lots earn 10% more' },
   { faction: 'tongtian', bonus: { kind: 'area_income', area: 'xinyi', amount: 0.1 }, text: 'Xinyi lots earn 10% more' },
+  { faction: 'xiaoxiao', bonus: { kind: 'area_income', area: 'xindian', amount: 0.1 }, text: 'Xindian lots earn 10% more' },
   { faction: 'independent', bonus: { kind: 'safe_hours', amount: 2 }, text: 'The safe holds 2 more hours' },
 ];
 

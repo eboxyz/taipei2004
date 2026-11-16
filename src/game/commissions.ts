@@ -59,7 +59,7 @@ export const COMMISSIONS: Record<CommissionId, CommissionDef> = {
   },
   full_district: {
     id: 'full_district',
-    text: `Own all ${DISTRICT_LOTS} lots in one district.`,
+    text: `Own all ${DISTRICT_LOTS} regular lots in one district.`,
     need: DISTRICT_LOTS,
     progress: (s) => mostIn((a) => forSale(a).filter((l) => s.lots[l.id]).length),
   },

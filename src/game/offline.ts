@@ -1,5 +1,5 @@
 import { OFFLINE_SHAKEDOWN_CAP, SHAKEDOWN_MAX_S, SHAKEDOWN_MIN_S } from './constants';
-import { incomePerSec, safeCapacity, safeHours } from './economy';
+import { offlineIncomePerSec, safeCapacity, safeHours } from './economy';
 import { resolveShakedown, workManagers, type Rng } from './tick';
 import type { GameEvent, GameState } from './types';
 
@@ -21,7 +21,7 @@ export interface AwaySummary {
  * capped by the safe, plus a batch of shakedowns. Offline income always goes to the safe.
  */
 export function applyOffline(state: GameState, seconds: number, now: number, rng: Rng = Math.random): { state: GameState; summary: AwaySummary } {
-  const rate = incomePerSec(state, 'average');
+  const rate = offlineIncomePerSec(state);
   const room = Math.max(0, safeCapacity(state) - state.safe);
   const earned = Math.min(room, rate * seconds);
   let s: GameState = {

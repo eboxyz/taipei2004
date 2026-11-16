@@ -108,7 +108,10 @@ while (t < HOURS * 3600) {
       const fight = fightFor(area, key);
       if (s.areas[area][key] || !fight || !canChallenge(s, fight)) continue;
       s = { ...s, areas: { ...s.areas, [area]: { ...s.areas[area], [key]: true } } };
-      if (key === 'boss') s = { ...s, index: s.index + CLAIM_INDEX, run: { ...s.run, claims: s.run.claims + 1 } };
+      if (key === 'boss') s = {
+        ...s, index: s.index + CLAIM_INDEX, run: { ...s.run, claims: s.run.claims + 1 },
+        meta: { ...s.meta, chapterClears: s.meta.chapterClears + (area === 'xinyi' ? 1 : 0), xindianClears: s.meta.xindianClears + (area === 'xindian' ? 1 : 0) },
+      };
       hits.push(`${formatDuration(t).padStart(8)}  ${AREAS[area as AreaId].name} ${key}${key === 'boss' ? ' (claimed)' : ''}  · Face if you cashed out now: ${cashOutPreview(s).face}`);
     }
   }

@@ -38,7 +38,7 @@ function blankState(now: number): GameState {
     draws: { templePity: 0, lotteryPity: 0, lastFreeTemple: null, fortune: null, count: { scratch: 0, temple: 0, lottery: 0 } },
     binderPaid: [],
     run: { accountant: false, claims: 0, underdog: 0, startedAt: now, headline: null, offers: [], commissions: [], events: 0, agentWin: false },
-    meta: { safeHours: START_SAFE_HOURS, face: 0, faceTotal: 0, squadSlots: 3, runs: 0, chapterClears: 0, upgrades: {}, claimedEver: [] },
+    meta: { safeHours: START_SAFE_HOURS, face: 0, faceTotal: 0, squadSlots: 3, runs: 0, chapterClears: 0, xindianClears: 0, upgrades: {}, claimedEver: [] },
     auto: { upgrade: [], buy: false, staff: false },
     cooldowns: {},
     hot: null,
@@ -77,6 +77,8 @@ export function migrate(raw: unknown, now: number): GameState | null {
       ...base.meta,
       ...s.meta,
       upgrades: { ...s.meta?.upgrades },
+      chapterClears: s.meta?.chapterClears ?? (s.areas?.xinyi?.boss ? 1 : 0),
+      xindianClears: s.meta?.xindianClears ?? (s.areas?.xindian?.boss ? 1 : 0),
       // Saves from before v4 could already have claimed Wanhua.
       claimedEver: s.meta?.claimedEver ?? (Object.entries(s.areas ?? {}) as [AreaId, AreaProgress][]).filter(([, p]) => p.boss).map(([a]) => a),
     },

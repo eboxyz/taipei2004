@@ -64,7 +64,18 @@ The mechanics are inspired by Yakuza 0's real estate minigame. All characters, g
 | 5 | **Xinyi 信義** | 101 rising, new money | Highest values; final boss | Tongtian Development |
 | Secret | **Xindian 新店** | Commuter towers, Bitan riverside | Earns extra while offline | Xiaoxiao Realty |
 
-- **The secret area** unlocks after the first Chapter 1 clear and is hidden until then. After that it appears in every run, after Xinyi. Clearing it plays the founding of New Taipei City (25 Dec 2010).
+- **The secret area** unlocks after the first Chapter 1 clear and is hidden until then. Its green-line station is permanently revealed after that, but each new run still requires claiming Xinyi to enter. Clearing it plays the founding of New Taipei City (25 Dec 2010).
+
+### Xindian: the Xiaoxiao finale
+- **Nine lots:** Station Breakfast Shop, Bitan Riverside Café, Commuter Apartments, Riverside Residences, Hillside Apartments, South Line Offices, Bitan Guesthouse (Qiao-lin), Sunny Courtyard Homes (A-Yin), Xiaoxiao Headquarters (branch network). Uses the existing ×100 district price curve and ×3200 payback slowdown as initial balance values.
+- **Commuter district:** Xindian lots earn **×2 while offline** (`XINDIAN_OFFLINE_MULT`). Other districts keep their normal away income. The safe is sized from the boosted offline rate so its stated hours remain accurate; the normal cap still applies. Live income/Best buy continue to use live rates.
+- **First lieutenant:** Qiao-lin (`xiaoxiao_agent`), the familiar smiling street-event agent, SR Broker. Friendly Offer buys out a weakened grunt; role aura: Lowball.
+- **Second lieutenant:** A-Yin (`a_yin`), SR Scrivener. Final Stamp stuns and strips defense; role aura: Red Tape. His first defeat makes every district’s Xiaoxiao branch available to buy for that run, including headquarters. These lots now have real income; the next cash-out locks the network again.
+- **Boss:** Xiao-dong (`xiao_dong`), SSR Broker. Closing Time boosts agent skill charge; commanding gives the existing Old Money aura. Corporate guards shelter the fast-charging back-row agents. Initial suggestion: Defensive (100% daytime boss wins in the 100-seed style check); subject to the balance pass.
+- **Rewards:** first wins pay 25 incense; 25 incense +1 ticket; 50 incense +3 tickets respectively. All three join through fights only. The completed Xiaoxiao binder page adds +10% Xindian income and its usual +1 ticket. Later runs award duplicate stars; rematches use the existing cooldown.
+- **Completion:** first secret claim shows the full Bitan celebration; later-run claims show the short version. Rematches do not replay the finale. `meta.xindianClears` persists through cash-outs and defaults safely on older saves. Xinyi’s fireworks remain separate.
+- **Art:** two new portraits, paired day/night riverside banners and `key/new_taipei`; reuse the existing smiling-agent portrait. New images are pending review. UI supplies names/date/text; no writing in the art.
+- **Initial simulation:** 300 seeds, All-around expected Lv30–32 / ★3 / Training 12: Qiao-lin 58% day / 100% night; A-Yin 63% / 100%; Xiao-dong 65% / 100%. Strengths 4.600 / 3.762 / 3.219 are starting values, not the deferred global balance pass. The strong-crew, always-online economy benchmark (`HOURS=96 CREW=1 UP=income:12,lot_price:5,upgrade_price:5,seed:4,old_turf:3 node --import tsx scripts/simulate.ts`) claims Xinyi at 21h47m and Xindian at 74h44m; fights are assumed instantly won and the offline bonus is absent. This longer tail belongs in the balance pass. The default first-run Ximending claim remains 51m.
 - **Possible expansions:** Yonghe/Zhonghe, Banqiao, Sanchong/Xinzhuang, Dadaocheng, Beitou, Shilin.
 
 ### Factions
@@ -82,7 +93,7 @@ The mechanics are inspired by Yakuza 0's real estate minigame. All characters, g
 - **The arc:** street gang → society → corporation → "legit" developer → it turns out the realtors were the real gangsters.
 - **Real names to avoid:** gangs (竹聯幫, 四海幫, 天道盟, …) and realty brands (信義房屋, 永慶, 大家房屋, …). None of our names collided with real ones in a search on 2026-11-15.
 - **Foreshadowing Xiaoxiao:**
-  - One "Not for sale" Xiaoxiao branch lot in every area. It opens up in 新店.
+  - One "Not for sale" Xiaoxiao branch lot in every area. Beating Xindian’s second lieutenant opens the branch network for that run.
   - Billboards and a jingle on the map, plus news ticker headlines ("Xiaoxiao Realty opens its 100th branch").
   - A cheerful Xiaoxiao agent in street events whose "helpful" tips were steering you.
   - Each defeated boss's last line points at them ("You think *we're* the problem?").
@@ -144,7 +155,7 @@ The mechanics are inspired by Yakuza 0's real estate minigame. All characters, g
 - **Dev tools** (the Office dev panel and the speed pill) exist only in dev builds. Production builds strip them out of the bundle entirely.
 
 #### Connections: Locals
-Crew from a district’s own gang (`CHARACTERS[id].faction === AREAS[area].rival`): Managers earn **×1.25** on that lot, stacking with 店長; Security count **×2** for Home Turf. Picker labels: “Local: +25% here” / “Local: counts ×2 for Home Turf”. Molong has no agents, so Ximending locals are guards only; Xiaoxiao/Xindian has none yet. Values await the balance pass.
+Crew from a district’s own gang (`CHARACTERS[id].faction === AREAS[area].rival`): Managers earn **×1.25** on that lot, stacking with 店長; Security count **×2** for Home Turf. Picker labels: “Local: +25% here” / “Local: counts ×2 for Home Turf”. Molong has no agents, so Ximending locals are guards only; Xiaoxiao’s Xindian crew are agents: local Managers there; no local gangster guards yet. Values await the balance pass.
 
 ### Shakedowns (rewards only)
 Rivals periodically lean on your lots in their area.
@@ -293,11 +304,13 @@ Steps 1–2 unlock during a run. Steps 3–5 are permanent Face upgrades, each w
 - **XP for the whole squad:** 60 for a first win, 30 for any other win, 12 for a loss.
 - **Claiming an area** doubles income on its lots and ends shakedowns there.
 
-### Presentation
-- **Layout:** portrait, enemies on top, player at the bottom, commanders in a row behind each army.
-- **Animated cards:** card portraits lunge, shake and flash, with damage numbers and big 漢字 impact text (砰! 爆! 勝!).
-- **Background:** the area banner, blurred, in its current day or night version.
-- No character sprites for now. PixelLab animation is a possible later upgrade.
+### Presentation (isometric street diorama, decided 2026-11-16)
+- **Camera:** a diagonal isometric plaza (8×8 grid of 2:1 tiles). Rivals stand up-right, your crew down-left, each army in rows: front, back, then commanders furthest from the fight. The battle engine is unchanged; this is presentation only (`src/ui/battle/IsoStage.tsx`).
+- **Scene:** the district's paving (its own two tones, a centre lane and slab edges, drawn in 2px steps so edges stair-step like pixel art), darkened at night. Above it, the district's scene in pixel art: the area art cropped to 5:4, shrunk to 130×104 and cut to 32 colours by `npm run art`, drawn at about 3× with hard pixels over a sky gradient.
+- **Fighters:** each is its 64 px PixelLab sprite (one still image, facing south-east; rivals are mirrored to face your crew). Until a character's sprite exists, their card stands on the plinth instead. Every fighter has an iso plinth in its side's colour, a shadow, and HP, shield and (yours) skill-charge bars.
+- **Motion, all in code:** an attacker dashes part-way to its target and back; a hit flashes the target and knocks it back away from the attacker, with pixel sparks; skills without a target hop; a KO tips the fighter flat; called-in runners drop in from above; an active shield is a cyan ring on the floor; sprites bob on an idle beat. Damage numbers are in the pixel font, and big 漢字 impact text (砰! 爆! 勝!) and the ultimate card stay. Reduced motion turns the movement off.
+- **Grunts** share the `street_punk` sprite washed in their gang's colour (the accent colour when the main one is near black, as with Molong).
+- **Manual mode:** tap a glowing fighter to fire its skill.
 
 ---
 
@@ -344,7 +357,7 @@ The Map includes a compact one-row **next-step tip** above the map (challenge a 
 |---|---|
 | Scratch cards | Street events, every 4th repelled shakedown, rematch wins |
 | Incense money 香油錢 | First wins over lieutenants (10) and bosses (20, which also claims the area), duplicates past ★5 (N 1, R 2, SR 5, SSR 10), plus one free temple visit a day |
-| Lottery tickets | First wins over bosses, cashing out, completing binder pages |
+| Lottery tickets | First wins over bosses (and Xindian’s second lieutenant), cashing out, completing binder pages |
 
 No real money anywhere.
 
@@ -363,7 +376,7 @@ No real money anywhere.
 
 ### Binder (名片簿)
 - Pages are grouped by faction. Empty slots show a silhouette and a hint about where to find that character.
-- Each completed page gives a permanent bonus and 1 lottery ticket: Hao Linju Realty, lots cost 5% less; each gang page, +10% income in that gang's area; Independents, the safe holds 2 more hours.
+- Each completed page gives a permanent bonus and 1 lottery ticket: Hao Linju Realty, lots cost 5% less; each gang page (including Xiaoxiao), +10% income in that gang's area; Independents, the safe holds 2 more hours.
 - Every 10 unique cards adds 5% global income.
 
 ---
@@ -476,7 +489,7 @@ Turf Wars launch from an area screen.
 | Source | Makes |
 |---|---|
 | **Codex (ChatGPT image generation)** | Style reference sheet, 31 portraits, 5 area banners (day and night), 7 crests, 3 key art, 12 map decorations. Brief: [`art/BRIEF.md`](../art/BRIEF.md) |
-| **PixelLab (free tier: about 40 generations, then a few per day)** | 20 lot icons and 6 map-event icons as LED-sign pixel pictograms (all generated). Prompts and results: [`art/PIXELLAB.md`](../art/PIXELLAB.md) |
+| **PixelLab (free tier: about 40 generations, then a few per day)** | 20 lot icons and 6 map-event icons as LED-sign pixel pictograms (all generated). Prompts and results: [`art/PIXELLAB.md`](../art/PIXELLAB.md). Battle sprites: one 64 px still per character in a gritty, realistic-proportion style (not chibi), made a few a day by a daily job, in order: [`art/SPRITES.md`](../art/SPRITES.md) |
 | **Claude (code)** | UI, metro map, card frames and finishes, halftone textures, role/currency/tab icons, draw machines, battle effects, the 101 skyline, the LED news ticker, placeholders, and the art processing script |
 
 ### Rules
@@ -529,7 +542,7 @@ Turf Wars launch from an area screen.
 
 ## Open items
 - **Light story only (decided 2026-11-16):** keep the rough story already in §1 (the arc, bosses' last lines pointing at Xiaoxiao, the Xindian ending), but no exposition: no story texts, no dialogue scenes, nothing players have to read. The improvement pass's "story beats" section was dropped.
-- Xiaoxiao Realty characters: secret boss and 2 lieutenants
+- Xindian implementation is complete locally; new art needs review and the browser walkthrough remains pending.
 - Balancing after playtests (`npm run sim` and `npm run sim:fights` hold the current targets)
 - **Planned balance pass (decided, done together later):**
   - **Repelled shakedowns weaken the gang (approved, waits for this pass):** each shakedown repelled in a district this run makes that gang’s next first-time fight there 2% weaker, up to 10%; the prep screen names it (“Your guards ran off 4 Molong shakedowns: Molong is 8% weaker”).
@@ -584,7 +597,9 @@ Turf Wars launch from an area screen.
 | a_shun | A-Shun 阿順 | Miaokou | R | 打手 | Temple | Procession drummer, headband, drumsticks | **War Drum:** strengthens the front row |
 | lao_liu | Lao Liu 老劉 | Jin Tangchi | R | 小弟 | Lottery | Chauffeur, white gloves, peaked cap | **Getaway Car:** revives one ally, once per fight |
 | street_punk | Street Punk 街頭小弟 | Molong | N | 小弟 | All | Generic punk with neutral colors, recolored per faction for enemy grunts | **Brawl:** basic hits |
-| xiaoxiao_agent | Xiaoxiao agent | Xiaoxiao | NPC | — | — | Sunny-yellow blazer, smiley pin, smile a little too wide | Street-event NPC; becomes collectible after 新店 |
+| xiaoxiao_agent | Qiao-lin 喬霖 | Xiaoxiao | Lt SR | 房仲 | Earned | Sunny-yellow blazer, smiley pin, smile a little too wide | **Friendly Offer:** buys out a weakened grunt |
+| a_yin | A-Yin 阿印 | Xiaoxiao | Lt SR | 代書 | Earned | Round glasses, yellow waistcoat, sleeve protectors, oversized seal stamp | **Final Stamp:** stuns and strips defense |
+| xiao_dong | Xiao-dong 笑董 | Xiaoxiao | Boss SSR | 房仲 | Earned | White suit, yellow tie, salt-and-pepper hair, brochure and house keys | **Closing Time:** charges agent skills; Old Money aura |
 
 **Counts:** 30 collectible characters plus 1 NPC.
 - **Women:** 9.

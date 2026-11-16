@@ -7,6 +7,7 @@ import { news } from './headlines';
 import { perk } from './perks';
 import {
   AVERAGE_PHASE_MULT,
+  XINDIAN_OFFLINE_MULT,
   CLAIM_LOT_DISCOUNT,
   EAST_HOT_ORDER,
   HOT_MULT,
@@ -139,7 +140,7 @@ export function safeHours(state: GameState): number {
 
 /** Safe capacity in NT$: N hours of average income. */
 export function safeCapacity(state: GameState): number {
-  return incomePerSec(state, 'average') * safeHours(state) * 3600;
+  return offlineIncomePerSec(state) * safeHours(state) * 3600;
 }
 
 export function brokerDiscount(state: GameState, area: AreaId): number {
@@ -197,14 +198,14 @@ export function upgradeCountFor(state: GameState, lot: LotDef, level: number, mo
 export function isAreaOpen(state: GameState, area: AreaId): boolean {
   const i = AREA_ORDER.indexOf(area);
   if (i <= 0) return true;
-  if (AREAS[area].secret) return false;
+  if (AREAS[area].secret) return state.meta.chapterClears > 0 && state.areas.xinyi.boss;
   const prev = AREA_ORDER[i - 1];
   return prev ? state.areas[prev].boss : false;
 }
 
 export function isLotLocked(state: GameState, lot: LotDef): boolean {
   if (!lot.lock) return false;
-  if (lot.lock === 'xiaoxiao') return true;
+  if (lot.lock === 'xiaoxiao') return !state.areas.xindian.lt2;
   return !state.areas[lot.area][lot.lock];
 }
 
@@ -245,4 +246,14 @@ export function lotOwnership(state: GameState, area: AreaId): { owned: number; t
   const lots = AREAS[area].lots;
   const owned = lots.filter((lot) => !!state.lots[lot.id]).length;
   return { owned, total: lots.length, fraction: lots.length ? owned / lots.length : 0 };
+}
+
+/** Average away income: only Xindian lots receive the commuter bonus. */
+export function offlineIncomePerSec(state: GameState): number {
+  let total = 0;
+  for (const id of Object.keys(state.lots)) {
+    const lot = ALL_LOTS[id];
+    if (lot) total += lotIncome(state, lot, 'average') * (lot.area === 'xindian' ? XINDIAN_OFFLINE_MULT : 1);
+  }
+  return total;
 }

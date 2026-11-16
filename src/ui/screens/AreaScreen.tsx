@@ -128,6 +128,7 @@ function ShareCard({ area, onFight, onToast }: { area: AreaId; onFight: (fightId
 }
 
 const TWIST: Partial<Record<AreaId, string>> = {
+  xindian: 'Commuter district: income ×2 while you’re away.',
   ximending: 'Fast money: cheaper lots that pay for themselves sooner.',
   zhongshan: '🌙 Night town: every business here earns ×2 at night (lots elsewhere get ×1.5).',
   xinyi: 'The most expensive land in the city, and the last boss.',
@@ -206,7 +207,7 @@ function LotCard({ lot, mode, phase, best, onOpen, onMilestone }: { lot: LotDef;
   };
   const hold = useHoldRepeat(ls ? upgrade : buy);
 
-  if (isXiaoxiao) {
+  if (isXiaoxiao && locked) {
     return (
       <div className="lot" data-state="xiaoxiao">
         <LedIcon category={lot.category} />
@@ -217,7 +218,7 @@ function LotCard({ lot, mode, phase, best, onOpen, onMilestone }: { lot: LotDef;
           </div>
           <div className="lot-meta">Always happy to help the neighborhood! 😊</div>
         </div>
-        <div className="lock-note">Not for sale</div>
+        <div className="lock-note">{s.meta.chapterClears > 0 ? "Clear Xindian’s lieutenants" : "Not for sale"}</div>
       </div>
     );
   }

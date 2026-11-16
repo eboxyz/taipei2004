@@ -98,6 +98,10 @@ export const AURA_TEXT: Record<AuraKind, string> = {
 };
 
 export const SKILLS: Record<string, SkillDef> = {
+  // Xiaoxiao: coordinated paperwork and fast agent skills.
+  xiaoxiao_agent: { kind: 'buyout', mult: 2.8, n: 12, charge: 12 },
+  a_yin: { kind: 'stun_strip', mult: 0.8, secs: 2, charge: 11 },
+  xiao_dong: { kind: 'charge_agents', mult: 0.4, charge: 12, aura: 'old_money' },
   // Miaokou
   kun_bo: { kind: 'summon', mult: 1, n: 1, charge: 14, aura: 'procession' },
   a_biao: { kind: 'hit_all', mult: 0.9, charge: 11 },

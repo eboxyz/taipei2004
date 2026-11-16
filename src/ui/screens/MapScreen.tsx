@@ -42,6 +42,7 @@ const NODES: Node[] = [
   { id: 'zhongshan', x: 190, y: 116, label: 'right', bubble: [146, 96] },
   { id: 'east', x: 278, y: 250, label: 'above', labelDx: -24, bubble: [276, 298] },
   { id: 'xinyi', x: 356, y: 250, label: 'below', bubble: [320, 204] },
+  { id: 'xindian', x: 222, y: 530, label: 'right', bubble: [164, 528] },
 ];
 
 /** Codex map stickers in the empty corners: center and the box they fit inside. Missing art is skipped. */
@@ -225,6 +226,8 @@ export function MapScreen({
 }) {
   const s = useGame();
   const now = useNow(5000);
+  const revealed = s.meta.chapterClears > 0;
+  const nodes = NODES.filter((node) => node.id !== 'xindian' || revealed);
   const phase = phaseAt(now);
   const night = phase === 'night';
   const ink = night ? '#f6f2ff' : '#1e1b2e';
@@ -280,7 +283,7 @@ export function MapScreen({
 
   const tapArea = (id: AreaId) => {
     if (isAreaOpen(s, id)) return onOpenArea(id);
-    const order: AreaId[] = ['wanhua', 'ximending', 'zhongshan', 'east', 'xinyi'];
+    const order: AreaId[] = ['wanhua', 'ximending', 'zhongshan', 'east', 'xinyi', 'xindian'];
     const prev = order[order.indexOf(id) - 1];
     onLocked(`Claim ${prev ? AREAS[prev].name : 'the previous area'} to open ${AREAS[id].name}.`);
   };
@@ -324,8 +327,8 @@ export function MapScreen({
             <b className="zh">{STICK_GRADE[fortune]}</b> Today's luck: street events ×{FORTUNE_EVENT_RATE[fortune]}
           </p>
         )}
-        <div className="metro" data-phase={phase}>
-          <svg viewBox="0 0 400 470" role="img" aria-label="Taipei metro map">
+        <div className="metro" data-phase={phase} style={revealed ? { aspectRatio: '400 / 580' } : undefined}>
+          <svg viewBox={`0 0 400 ${revealed ? 580 : 470}`} role="img" aria-label="Taipei metro map">
             {/* Rivers */}
             <path d="M 18 0 C 30 120, 8 220, 26 300 S 70 420, 150 470" fill="none" stroke={night ? '#2a4a8a' : '#a9d8ee'} strokeWidth="16" strokeLinecap="round" opacity="0.8" />
             <path d="M 150 470 C 220 430, 250 440, 330 470" fill="none" stroke={night ? '#2a4a8a' : '#a9d8ee'} strokeWidth="10" opacity="0.6" />
@@ -344,14 +347,15 @@ export function MapScreen({
                 <stop offset="1" stopColor="#008659" stopOpacity="0" />
               </linearGradient>
             </defs>
-            <path d="M 190 250 L 190 330 C 190 360, 205 370, 215 395 L 222 470" stroke="url(#greenfade)" strokeWidth="8" strokeLinecap="round" fill="none" strokeDasharray="0" />
+            <path d="M 190 250 L 190 330 C 190 360, 205 370, 215 395 L 222 470" stroke={revealed ? '#008659' : 'url(#greenfade)'} strokeWidth="8" strokeLinecap="round" fill="none" strokeDasharray="0" />
             <circle cx="215" cy="395" r="5" fill={night ? '#1a1240' : '#fff'} stroke="#008659" strokeWidth="3" />
             <text x="227" y="399" fontSize="10" fontWeight="700" fill={sub}>
               公館 Gongguan
             </text>
-            <text x="226" y="452" fontSize="16" fontWeight="900" fill={sub}>
+            {revealed && <path d="M222 470 L222 556" stroke="#008659" strokeWidth="8" fill="none" />}
+            {!revealed && <text x="226" y="452" fontSize="16" fontWeight="900" fill={sub}>
               ?
-            </text>
+            </text>}
 
             {/* Bannan line (blue), west to east, bending southwest past Ximen to Longshan Temple */}
             <path d="M -10 350 L 48 292 L 90 250 L 410 250" stroke="#0070BD" strokeWidth="9" strokeLinecap="round" strokeLinejoin="round" fill="none" />
@@ -374,7 +378,7 @@ export function MapScreen({
             </g>
 
             {/* Area stations */}
-            {NODES.map((n) => {
+            {nodes.map((n) => {
               const area = AREAS[n.id];
               const open = isAreaOpen(s, n.id);
               const ownership = lotOwnership(s, n.id);

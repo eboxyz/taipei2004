@@ -123,3 +123,11 @@
 - `map/elephant_mountain.png` — pending review — Batch G; built-in imagegen with approved style sheet, palace-hotel miniature reference, shared style block and map-sticker block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned larger square source than requested 1024x1024; retained to conserve generation usage.
 
 - `map/street_cat.png` — pending review — Batch G; built-in imagegen with approved style sheet, palace-hotel miniature reference, shared style block and map-sticker block; 1254×1254 RGBA; alpha (0, 255); exact prompt saved alongside image. Generator returned larger square source than requested 1024x1024; retained to conserve generation usage.
+
+## Xindian — 2026-11-16 (built-in image generation)
+- `characters/a_yin.png` — pending review; transparent seal-stamp scrivener, approved style reference attached.
+- `characters/xiao_dong.png` — pending review; transparent white/yellow chairman, approved style reference attached.
+- `areas/xindian_day.png` — pending review; Bitan riverside, bridge and commuter homes; source 1536×1024.
+- `areas/xindian_night.png` — pending review; same scene edited to night, source 1536×1024.
+- `key/new_taipei.png` — pending review; riverside finale, source 1024×1536. UI supplies date and words.
+- Existing `characters/xiaoxiao_agent.png` reused for Qiao-lin; no replacement of accepted art.

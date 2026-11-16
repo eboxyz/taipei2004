@@ -62,8 +62,10 @@ export const CHARACTERS: Record<string, CharacterDef> = Object.fromEntries(
     c({ id: 'lao_zhang', name: 'Lao Zhang', nameZh: '老張', faction: 'independent', rarity: 'SR', role: 'dianzhang', source: 'scratch', look: 'Night-market king, apron, giant wok', skill: { name: 'Night Market Feast', text: 'Heals everyone' } }),
     c({ id: 'a_xiong', name: 'A-Xiong', nameZh: '阿雄', faction: 'independent', rarity: 'SR', role: 'junshi', source: 'temple', look: 'Taxi driver, aviators, CB radio', skill: { name: 'Tip-off', text: 'Weakens the enemy commanders' } }),
     c({ id: 'lao_zhou', name: 'Lao Zhou', nameZh: '老周', faction: 'independent', rarity: 'SR', role: 'weishi', source: 'lottery', look: 'Retired detective, trench coat, toothpick', skill: { name: 'Off-Duty Badge', text: 'Big self-shield; enemies focus him' } }),
-    // Xiaoxiao Realty (NPC until 新店)
-    c({ id: 'xiaoxiao_agent', name: 'Xiaoxiao Agent', nameZh: '笑笑專員', faction: 'xiaoxiao', rarity: 'NPC', role: null, source: 'npc', look: 'Sunny-yellow blazer, smiley pin, smile a little too wide', skill: { name: '—', text: 'Always happy to help.' } }),
+    // Xiaoxiao Realty: earned in Xindian; the familiar street-event agent joins first.
+    c({ id: 'xiaoxiao_agent', name: 'Qiao-lin', nameZh: '喬霖', faction: 'xiaoxiao', rarity: 'SR', role: 'fangzhong', source: 'earned', look: 'Sunny-yellow blazer, smiley pin, smile a little too wide', skill: { name: 'Friendly Offer', text: 'Buys out a weakened rival grunt' } }),
+    c({ id: 'a_yin', name: 'A-Yin', nameZh: '阿印', faction: 'xiaoxiao', rarity: 'SR', role: 'daishu', source: 'earned', look: 'Meticulous Taiwanese man, thirty, round glasses, yellow waistcoat, sleeve protectors, oversized seal stamp and document folder', skill: { name: 'Final Stamp', text: 'Stuns and strips defense' } }),
+    c({ id: 'xiao_dong', name: 'Xiao-dong', nameZh: '笑董', faction: 'xiaoxiao', rarity: 'SSR', role: 'fangzhong', source: 'earned', look: 'Sunny Taiwanese chairman, fifty, immaculate white suit, yellow tie and pocket square, gold house-key pin, open property brochure', skill: { name: 'Closing Time', text: 'Charges agents’ skills; agents charge faster when commanding' } }),
   ].map((d) => [d.id, d]),
 );
 

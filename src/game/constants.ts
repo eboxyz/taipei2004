@@ -136,3 +136,6 @@ export const FORTUNE_EVENT_RATE: Record<Rarity, number> = { N: 1.25, R: 1.5, SR:
 export const EVENT_MIN_S = 200;
 export const EVENT_MAX_S = 360;
 export const EVENT_LIFETIME_S = 90;
+
+/** Xindian’s commuter economy pays extra while away. Safe capacity uses this rate too. */
+export const XINDIAN_OFFLINE_MULT = 2;

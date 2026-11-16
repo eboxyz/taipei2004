@@ -1,0 +1,430 @@
+/* Turf War isometric stage. Sizes are in cqw of the stage (390 logical px = 100cqw). */
+
+.battle[data-stage='iso'] {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+/* The scene fills the space under the battle bar: pixel street above, paving below,
+   and the 390×440 board centred in it. --hb is the board's height in the scene. */
+.iso-wrap {
+  position: relative;
+  z-index: 1;
+  min-height: 0;
+  display: grid;
+  place-items: end center;
+  container-type: size;
+  overflow: hidden;
+  background: var(--ground);
+  --hb: min(100cqh, calc(100cqw * 440 / 390));
+}
+
+/* Everything above the plaza: sky, then the district's street in pixel art, fading into the paving. */
+.iso-sky {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: calc(100cqh - var(--hb) * 0.58);
+  overflow: hidden;
+  background: linear-gradient(to bottom, #4fa9e0, #8fd0f0);
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000 86%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 86%, transparent 100%);
+}
+
+.iso-wrap[data-night='true'] .iso-sky {
+  background: linear-gradient(to bottom, #0d0824, #241a4a);
+}
+
+.iso-skyimg {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 125%;
+  height: auto;
+  transform: translateX(-50%);
+  image-rendering: pixelated;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 20%);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 20%);
+}
+
+.iso-stage {
+  position: relative;
+  width: min(100cqw, calc(100cqh * 390 / 440));
+  aspect-ratio: 390 / 440;
+  container-type: inline-size;
+}
+
+.iso-floor {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.iso-stage[data-night='true'] .iso-floor {
+  filter: brightness(0.6) saturate(1.2) hue-rotate(-10deg);
+}
+
+/* One fighter: the button's bottom centre is where their feet touch the floor. */
+.iso-unit {
+  position: absolute;
+  width: 15.4cqw;
+  height: 24cqw;
+  padding: 0;
+  border: 0;
+  background: none;
+  transform: translate(-50%, -100%);
+  cursor: default;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.iso-unit[data-ready='true'] {
+  cursor: pointer;
+}
+
+.iso-unit:focus-visible {
+  outline: 3px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.iso-shadow {
+  position: absolute;
+  left: 50%;
+  bottom: -1.6cqw;
+  width: 14cqw;
+  height: 4cqw;
+  transform: translateX(-50%);
+  background: rgba(18, 12, 46, 0.3);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+/* A little iso diamond plinth in the side's colour. */
+.iso-base {
+  position: absolute;
+  left: 50%;
+  bottom: -1.2cqw;
+  width: 11cqw;
+  height: 5.5cqw;
+  transform: translateX(-50%);
+  background: var(--ink);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.iso-base::after {
+  content: '';
+  position: absolute;
+  inset: 0.9cqw 1.6cqw;
+  background: var(--orange);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.iso-unit[data-side='them'] .iso-base::after {
+  background: var(--red);
+}
+
+.iso-unit[data-alive='false'] .iso-base {
+  opacity: 0.4;
+}
+
+.iso-ring {
+  position: absolute;
+  left: 50%;
+  bottom: -2.6cqw;
+  width: 17cqw;
+  height: 8cqw;
+  transform: translateX(-50%);
+  border: 0.9cqw solid var(--cyan);
+  border-radius: 50%;
+  box-sizing: border-box;
+  animation: iso-ring 1.2s steps(3) infinite;
+}
+
+@keyframes iso-ring {
+  50% {
+    opacity: 0.45;
+    transform: translateX(-50%) scale(1.12);
+  }
+}
+
+.iso-fig {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.iso-bars {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4cqw;
+  margin-bottom: 0.6cqw;
+}
+
+.iso-crown {
+  padding: 0 1cqw;
+  border-radius: 0.6cqw;
+  background: var(--warm);
+  color: var(--ink);
+  font-size: max(9px, 2.4cqw);
+  font-weight: 900;
+  line-height: 1.3;
+}
+
+.iso-hp,
+.iso-charge {
+  position: relative;
+  display: block;
+  width: 11cqw;
+  height: 1.6cqw;
+  border: 0.4cqw solid var(--ink);
+  background: #3a2f5e;
+  overflow: hidden;
+}
+
+.iso-charge {
+  height: 1cqw;
+  border-width: 0.3cqw;
+}
+
+.iso-hp i,
+.iso-charge i {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--green);
+}
+
+.iso-unit[data-side='them'] .iso-hp i {
+  background: var(--red);
+}
+
+.iso-hp i[data-low='true'] {
+  background: var(--warm);
+}
+
+.iso-hp b {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--cyan);
+  opacity: 0.85;
+}
+
+.iso-charge i {
+  background: var(--warm);
+}
+
+.iso-charge[data-full='true'] {
+  box-shadow: 0 0 1cqw var(--warm);
+}
+
+.iso-tip {
+  display: block;
+  transform-origin: 50% 100%;
+}
+
+.iso-unit[data-hit='true'] .iso-tip {
+  filter: brightness(2.2);
+}
+
+.iso-unit[data-stun='true'] .iso-tip {
+  filter: saturate(0.4) brightness(0.9);
+}
+
+.iso-unit[data-ready='true'] .iso-tip {
+  filter: drop-shadow(0 0 1.2cqw var(--warm)) drop-shadow(0 0 0.4cqw var(--warm));
+}
+
+/* 64 px PixelLab sprite, drawn 1:1 at a 390 px stage. Rivals are mirrored to face your crew. */
+.iso-sprite {
+  position: relative;
+  display: block;
+  width: 16.4cqw;
+  height: 16.4cqw;
+  margin-bottom: -1.4cqw;
+}
+
+.iso-sprite[data-flip='true'] {
+  transform: scaleX(-1);
+}
+
+.iso-sprite img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+/* Grunts share one sprite, washed in their gang's colour. */
+.iso-tint {
+  position: absolute;
+  inset: 0;
+  background: var(--tint);
+  mix-blend-mode: color;
+  opacity: 0.6;
+  -webkit-mask-image: var(--mask);
+  mask-image: var(--mask);
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+}
+
+/* Until a sprite exists: the character's card, standing on its base. */
+.iso-card {
+  display: block;
+  width: 11cqw;
+  height: 14.6cqw;
+  margin-bottom: 0.6cqw;
+  border: 0.6cqw solid var(--ink);
+  border-radius: 1cqw;
+  overflow: hidden;
+  background: var(--paper);
+  box-shadow: 0.7cqw 0.7cqw 0 var(--ink);
+}
+
+.iso-unit[data-side='them'] .iso-card {
+  border-color: #6b1d16;
+}
+
+.iso-card .portrait {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+}
+
+.iso-status {
+  position: absolute;
+  top: 34%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0 1cqw;
+  border-radius: 0.6cqw;
+  background: rgba(18, 12, 46, 0.85);
+  color: var(--warm);
+  font-size: max(9px, 2.3cqw);
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+/* Pixel sparks on a hit. */
+.iso-sparks {
+  position: absolute;
+  left: 50%;
+  top: 58%;
+  width: 0;
+  height: 0;
+}
+
+.iso-sparks i {
+  position: absolute;
+  width: 1.6cqw;
+  height: 1.6cqw;
+  background: var(--warm);
+  animation: iso-spark 0.26s steps(4) forwards;
+}
+
+.iso-sparks i:nth-child(2) {
+  background: #fff;
+  --sx: 5cqw;
+  --sy: -4cqw;
+}
+
+.iso-sparks i:nth-child(1) {
+  --sx: -5cqw;
+  --sy: -4cqw;
+}
+
+.iso-sparks i:nth-child(3) {
+  background: var(--orange);
+  --sx: -4cqw;
+  --sy: 3cqw;
+}
+
+.iso-sparks i:nth-child(4) {
+  --sx: 4cqw;
+  --sy: 3cqw;
+}
+
+@keyframes iso-spark {
+  to {
+    transform: translate(var(--sx), var(--sy));
+    opacity: 0;
+  }
+}
+
+.iso-float {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  z-index: 3;
+  white-space: nowrap;
+  pointer-events: none;
+  font-family: var(--font-led);
+  font-size: max(14px, 4.4cqw);
+  color: #fff;
+  text-shadow: 0.5cqw 0 var(--ink), -0.5cqw 0 var(--ink), 0 0.5cqw var(--ink), 0 -0.5cqw var(--ink);
+  animation: iso-float 0.9s steps(9) forwards;
+}
+
+.iso-float[data-kind='crit'] {
+  font-size: max(18px, 6cqw);
+  color: var(--warm);
+}
+
+.iso-float[data-kind='heal'] {
+  color: var(--green);
+}
+
+.iso-float[data-kind='shield'] {
+  color: var(--cyan);
+}
+
+.iso-float[data-kind='status'] {
+  font-family: var(--font-ui);
+  font-weight: 900;
+  font-size: max(10px, 2.8cqw);
+  color: var(--warm);
+}
+
+@keyframes iso-float {
+  from {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+  to {
+    transform: translate(-50%, -8cqw);
+    opacity: 0;
+  }
+}
+
+.iso-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 2cqw;
+  transform: translateX(-50%);
+  z-index: 1000;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(18, 12, 46, 0.8);
+  color: var(--warm);
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .iso-ring,
+  .iso-sparks i,
+  .iso-float {
+    animation-duration: 0.01s;
+  }
+}

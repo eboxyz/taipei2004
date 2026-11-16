@@ -25,7 +25,7 @@ const GENERIC_LED = [
 ];
 
 export function LedIcon({ category, size = 56 }: { category: string; size?: number }) {
-  const url = artUrl('lots', category);
+  const url = artUrl('lots', category === 'commuter_home' ? 'luxury_condo' : category);
   if (url) {
     // PixelLab icons are 32×32. Show them at the largest half-step scale that fits inside the border.
     const px = (Math.floor(((size - 4) / 32) * 2) / 2) * 32;

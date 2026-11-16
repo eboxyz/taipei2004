@@ -43,6 +43,7 @@ const WANHUA = ['a_biao', 'gui_yi', 'kun_bo'];
 const XIMENDING = ['xiao_zhen', 'a_gan', 'a_jie'];
 const ZHONGSHAN = ['a_jian', 'coco', 'yue_jie'];
 const EAST = ['da_kuai', 'vivi', 'jin_shao'];
+const XINYI = ['secretary_lin', 'tie_ge', 'tian_dong'];
 
 const scenarios: { fight: string; label: string; state: GameState }[] = [
   { fight: 'wanhua_lt1', label: 'starters Lv1', state: withCrew({ hai_shu: 1, a_di: 1, a_cai: 1 }, 3) },
@@ -67,6 +68,10 @@ const scenarios: { fight: string; label: string; state: GameState }[] = [
   { fight: 'xinyi_lt1', label: 'run 4: Lv22 ★3, Training 10', state: withCrew({ ...lv(STARTERS, 22), ...lv(WANHUA, 21), ...lv(XIMENDING, 20), ...lv(ZHONGSHAN, 18), ...lv(EAST, 15) }, 7, {}, 3, 10) },
   { fight: 'xinyi_lt2', label: 'run 4: + Secretary Lin', state: withCrew({ ...lv(STARTERS, 23), ...lv(WANHUA, 22), ...lv(XIMENDING, 21), ...lv(ZHONGSHAN, 19), ...lv(EAST, 16), secretary_lin: 1 }, 7, {}, 3, 10) },
   { fight: 'xinyi_boss', label: 'run 4: + Tie-ge', state: withCrew({ ...lv(STARTERS, 23), ...lv(WANHUA, 22), ...lv(XIMENDING, 21), ...lv(ZHONGSHAN, 19), ...lv(EAST, 17), secretary_lin: 2, tie_ge: 1 }, 7, {}, 3, 10) },
+  // Secret chapter: established collection, Lv30 / ★3 / Training 12.
+  { fight: 'xindian_lt1', label: 'secret: Lv30 ★3, Training 12', state: withCrew({ ...lv(STARTERS, 30), ...lv(WANHUA, 29), ...lv(XIMENDING, 28), ...lv(ZHONGSHAN, 26), ...lv(EAST, 24), ...lv(XINYI, 20) }, 7, {}, 3, 12) },
+  { fight: 'xindian_lt2', label: 'secret: + Qiao-lin', state: withCrew({ ...lv(STARTERS, 31), ...lv(WANHUA, 30), ...lv(XIMENDING, 29), ...lv(ZHONGSHAN, 27), ...lv(EAST, 25), ...lv(XINYI, 21), xiaoxiao_agent: 5 }, 7, {}, 3, 12) },
+  { fight: 'xindian_boss', label: 'secret: + A-Yin, Lv32 ★3', state: withCrew({ ...lv(STARTERS, 32), ...lv(WANHUA, 31), ...lv(XIMENDING, 30), ...lv(ZHONGSHAN, 28), ...lv(EAST, 26), ...lv(XINYI, 22), xiaoxiao_agent: 7, a_yin: 5 }, 7, {}, 3, 12) },
 ];
 
 const only = process.env.ONLY;
@@ -123,7 +128,7 @@ if (process.env.TUNE) {
       return w / N;
     };
     let lo = 0.3;
-    let hi = 4;
+    let hi = fight.area === 'xindian' ? 8 : 4;
     for (let i = 0; i < 12; i++) {
       const mid = (lo + hi) / 2;
       if (rate(mid) > 0.6) lo = mid;

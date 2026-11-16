@@ -30,6 +30,8 @@ const RULES = {
   // PixelLab icons: keep pixels crisp.
   lots: { pixel: true },
   events: { pixel: true },
+  // PixelLab battle sprites (64×64, facing south-east): copied as-is, drawn at whole-number scales.
+  sprites: { pixel: true },
 };
 
 /** The brief used a few longer file names than the game's data ids. */
@@ -87,6 +89,24 @@ for (const [category, rule] of Object.entries(RULES)) {
     count += 1;
   }
   manifest[category].sort();
+}
+
+// Battle backdrops: each area's 3:2 source scene cropped to 5:4 around the middle, shrunk to 130×104
+// and cut to 32 colours, so it reads as pixel art when the stage draws it back up (~3×) with hard pixels.
+const banners = await listPngs(path.join(SRC, 'areas'));
+manifest.areas_px = [];
+if (banners.length > 0) {
+  await mkdir(path.join(OUT, 'areas_px'), { recursive: true });
+  for (const file of banners) {
+    const id = gameId('areas', file);
+    await sharp(path.join(SRC, 'areas', file))
+      .resize(130, 104, { fit: 'cover', position: 'centre' })
+      .png({ palette: true, colors: 32, dither: 0 })
+      .toFile(path.join(OUT, 'areas_px', `${id}.png`));
+    manifest.areas_px.push(id);
+    count += 1;
+  }
+  manifest.areas_px.sort();
 }
 
 await mkdir(path.dirname(MANIFEST), { recursive: true });

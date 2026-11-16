@@ -212,3 +212,12 @@ Where each one goes on the map is given in brackets, so you can choose which way
 - `campus_palms` *(near Gongguan)*: a short row of three tall palm trees with a bicycle parked under them.
 - `elephant_mountain` *(bottom right, south of Xinyi)*: a rounded green hill with a winding stone stairway and a tiny pavilion on top.
 - `street_cat` *(small filler)*: a chubby orange street cat loafing on a parked scooter seat.
+
+## Xindian extension (2026-11-16)
+Use the approved style sheet and shared style block for every asset. Prompts are saved beside the source images; all five new files are pending review.
+
+- `characters/a_yin.png`: SR Xiaoxiao scrivener; Taiwanese man, 32, neatly parted hair, round glasses, yellow waistcoat, rolled sleeves and sleeve protectors, oversized red wooden stamp and blank document folder. Transparent waist-up portrait.
+- `characters/xiao_dong.png`: SSR Xiaoxiao chairman; Taiwanese man, 55, salt-and-pepper hair, broad friendly smile, white suit, yellow tie/pocket square, house-key pin, blank property brochure and ring of keys. Transparent waist-up portrait.
+- `characters/xiaoxiao_agent.png`: reuse the existing smiling agent for Qiao-lin, now the recruitable first Xindian lieutenant.
+- `areas/xindian_day.png` / `xindian_night.png`: Bitan suspension bridge and river, tiled commuter apartments, tree-covered hills, breakfast shop/café and yellow-white realty storefront. Match camera and buildings between day/night. Landscape source; important content centered for the 2.4:1 crop.
+- `key/new_taipei.png`: winter neighborhood celebration beside Bitan, bridge lights reflected in the river, neighbors holding lanterns and fireworks overhead. No Taipei 101; no text or dates in the art. Quiet lower area for UI; portrait source for 9:16 crop.

@@ -10,6 +10,7 @@
     "a_shun",
     "a_tai",
     "a_xiong",
+    "a_yin",
     "bao_zhu",
     "chen_daishu",
     "coco",
@@ -28,6 +29,7 @@
     "tian_dong",
     "tie_ge",
     "vivi",
+    "xiao_dong",
     "xiao_zhen",
     "xiaoxiao_agent",
     "yue_jie"
@@ -39,6 +41,8 @@
     "wanhua_night",
     "ximending_day",
     "ximending_night",
+    "xindian_day",
+    "xindian_night",
     "xinyi_day",
     "xinyi_night",
     "zhongshan_day",
@@ -56,6 +60,7 @@
   "key": [
     "cash_out",
     "fireworks",
+    "new_taipei",
     "title"
   ],
   "map": [
@@ -101,5 +106,25 @@
     "recruit",
     "scratch",
     "tip"
+  ],
+  "sprites": [
+    "a_biao",
+    "a_cai",
+    "hai_shu",
+    "street_punk"
+  ],
+  "areas_px": [
+    "east_day",
+    "east_night",
+    "wanhua_day",
+    "wanhua_night",
+    "ximending_day",
+    "ximending_night",
+    "xindian_day",
+    "xindian_night",
+    "xinyi_day",
+    "xinyi_night",
+    "zhongshan_day",
+    "zhongshan_night"
   ]
 }

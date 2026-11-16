@@ -6,7 +6,7 @@ import { createBattle, fire, type Battle, type BattleEvent, type BattleInput, ty
 import { classOf } from '../../game/characters';
 import { phaseAt, secondsToNextPhase } from '../../game/clock';
 import { ALL_LOTS, AREAS, AREA_ORDER, FACTIONS } from '../../game/content/areas';
-import { Fireworks } from '../components/Ceremony';
+import { NewTaipeiCelebration, Fireworks } from '../components/Ceremony';
 import { CHARACTERS } from '../../game/content/characters';
 import { FIGHTS, type FightDef } from '../../game/content/fights';
 import { QUICK_CLAIM_RATIO, REARMED_FACE_PER_WIN, REARMED_STRENGTH, SHARE_BONUS_PER_STEP } from '../../game/constants';
@@ -30,6 +30,7 @@ import { artUrl } from '../art';
 import { Portrait } from '../components/bits';
 import { useDebugSpeed } from '../components/chrome';
 import { SquadBoard } from '../components/Squad';
+import { IsoStage, type StageAnim } from '../battle/IsoStage';
 import { update } from '../engine';
 import { store, useGame, useNow } from '../store';
 import { track } from '../analytics';
@@ -233,7 +234,7 @@ function BattleScreen({ input, seed, fight, onEnd }: { input: BattleInput; seed:
   b.auto = auto;
 
   const [, redraw] = useReducer((x: number) => x + 1, 0);
-  const anim = useRef(new Map<number, { lunge: number; hit: number; ko?: number }>());
+  const anim = useRef(new Map<number, StageAnim>());
   const floats = useRef<Float[]>([]);
   const impact = useRef<Impact | null>(null);
   const ult = useRef<{ uid: number; until: number } | null>(null);
@@ -261,9 +262,11 @@ function BattleScreen({ input, seed, fight, onEnd }: { input: BattleInput; seed:
       switch (e.kind) {
         case 'attack':
           mark(e.uid, 'lunge');
+          anim.current.get(e.uid)!.target = e.target;
           break;
         case 'damage':
           mark(e.uid, 'hit');
+          anim.current.get(e.uid)!.from = e.from;
           float(e.uid, `${e.crit ? '' : '-'}${e.amount}`, e.crit ? 'crit' : 'dmg');
           if (e.crit) shout('爆!', 'big');
           else if (e.big) shout('砰!', 'hit');
@@ -284,11 +287,16 @@ function BattleScreen({ input, seed, fight, onEnd }: { input: BattleInput; seed:
         case 'revive':
           float(e.uid, 'BACK UP', 'heal');
           break;
-        case 'spawn':
+        case 'spawn': {
           float(e.uid, 'JOINS', 'status');
+          const a = anim.current.get(e.uid) ?? { lunge: 0, hit: 0 };
+          anim.current.set(e.uid, { ...a, spawn: now });
           break;
+        }
         case 'skill': {
           mark(e.uid, 'lunge');
+          // No target: the stage plays a hop instead of a dash.
+          anim.current.get(e.uid)!.target = undefined;
           const u = b.units.find((x) => x.uid === e.uid);
           if (e.ultimate) ult.current = { uid: e.uid, until: now + ULT_PAUSE_MS / speedRef.current };
           else if (u) float(e.uid, CHARACTERS[u.spec.charId]?.skill.name ?? 'Skill', 'status');
@@ -356,25 +364,13 @@ function BattleScreen({ input, seed, fight, onEnd }: { input: BattleInput; seed:
   };
   // Called-in runners leave the board shortly after they drop, so the front row doesn't fill with KOs.
   const shown = (u: Unit) => u.alive || u.spec.slot >= 0 || now - (anim.current.get(u.uid)?.ko ?? 0) < 700;
-  const group = (side: 'you' | 'them', row: Unit['row']) => b.units.filter((u) => u.side === side && u.row === row && shown(u));
-  const rowEl = (side: 'you' | 'them', row: Unit['row']) => {
-    const units = group(side, row);
-    if (units.length === 0) return <div className="b-row" data-row={row} data-empty="true" />;
-    return (
-      <div className="b-row" data-row={row}>
-        {units.map((u) => (
-          <BattleUnit key={u.uid} u={u} now={now} anim={anim.current.get(u.uid)} floats={floats.current.filter((f) => f.uid === u.uid)} manual={!auto} onTap={() => tap(u)} />
-        ))}
-      </div>
-    );
-  };
   const left = Math.max(0, Math.ceil(b.input.timeLimit - b.t));
   const ultUnit = ult.current ? b.units.find((u) => u.uid === ult.current!.uid) : null;
   const area = AREAS[fight.area];
   const bg = artUrl('areas', `${fight.area}_${input.night ? 'night' : 'day'}`);
 
   return (
-    <div className="battle" data-night={input.night}>
+    <div className="battle" data-night={input.night} data-stage="iso">
       <div className="battle-bg" aria-hidden>
         {bg ? <img src={bg} alt="" /> : <span>{area.nameZh}</span>}
       </div>
@@ -397,17 +393,17 @@ function BattleScreen({ input, seed, fight, onEnd }: { input: BattleInput; seed:
           AUTO {auto ? 'ON' : 'OFF'}
         </button>
       </header>
-      <div className="b-side" data-side="them">
-        {rowEl('them', 'cmd')}
-        {rowEl('them', 'back')}
-        {rowEl('them', 'front')}
-      </div>
-      <div className="b-mid">{!auto && !b.outcome && <span className="manual-hint">Tap a glowing card to fire its skill</span>}</div>
-      <div className="b-side" data-side="you">
-        {rowEl('you', 'front')}
-        {rowEl('you', 'back')}
-        {rowEl('you', 'cmd')}
-      </div>
+      <IsoStage
+        units={b.units.filter(shown)}
+        anim={anim.current}
+        floats={floats.current}
+        now={now}
+        manual={!auto}
+        area={fight.area}
+        night={input.night}
+        onTap={tap}
+        hint={!auto && !b.outcome ? 'Tap a glowing fighter to fire its skill' : undefined}
+      />
       {impact.current && (
         <div key={impact.current.id} className="impact" data-tone={impact.current.tone}>
           {impact.current.text}
@@ -429,55 +425,11 @@ function BattleScreen({ input, seed, fight, onEnd }: { input: BattleInput; seed:
   );
 }
 
-function BattleUnit({ u, now, anim, floats, manual, onTap }: { u: Unit; now: number; anim?: { lunge: number; hit: number }; floats: Float[]; manual: boolean; onTap: () => void }) {
-  const hp = Math.max(0, u.hp / u.maxHp);
-  const sh = Math.min(1, u.shield / u.maxHp);
-  const lunge = anim && now - anim.lunge < 220;
-  const hit = anim && now - anim.hit < 260;
-  const ready = manual && u.side === 'you' && u.alive && u.charge >= 1;
-  const status = [u.stun > 0 && 'STUN', u.taunt > 0 && 'TAUNT', u.strip > 0 && 'EXPOSED', u.weak > 0 && 'WEAK', u.buff > 0 && 'POWER', u.haste > 0 && 'FAST'].filter(Boolean) as string[];
-  return (
-    <button
-      className="bu"
-      data-side={u.side}
-      data-cmd={u.commander}
-      data-alive={u.alive}
-      data-lunge={!!lunge}
-      data-hit={!!hit}
-      data-ready={ready}
-      data-stun={u.stun > 0}
-      onClick={onTap}
-      tabIndex={ready ? 0 : -1}
-      aria-label={`${u.spec.name}, ${Math.ceil(u.hp)} of ${u.maxHp} health${ready ? ', skill ready' : ''}`}
-    >
-      <div className="bu-card">
-        <Portrait id={u.spec.charId} face style={u.spec.grunt ? gruntColors(u.spec.faction) : undefined} />
-        {u.commander && <span className="bu-crown">{u.spec.slot === 6 ? 'BOSS' : 'LT'}</span>}
-        {status.length > 0 && u.alive && <span className="bu-status">{status[0]}</span>}
-        {!u.alive && <span className="bu-ko">KO</span>}
-      </div>
-      <span className="bu-name">{u.spec.name}</span>
-      <span className="bu-hp">
-        <i style={{ width: `${hp * 100}%` }} data-low={hp < 0.3} />
-        {sh > 0 && <b style={{ width: `${sh * 100}%` }} />}
-      </span>
-      <span className="bu-charge" data-full={u.charge >= 1}>
-        <i style={{ width: `${u.charge * 100}%` }} />
-      </span>
-      {floats.map((f) => (
-        <span key={f.id} className="float" data-kind={f.kind}>
-          {f.text}
-        </span>
-      ))}
-    </button>
-  );
-}
-
 /* ---------- Results ---------- */
 
 function Results({ fight, result, report, hints, onAgain, onClose }: { fight: FightDef; result: FightResult; report: string; hints: string[]; onAgain: () => void; onClose: () => void }) {
   const win = result.outcome === 'win';
-  const [show, setShow] = useState(!!result.fireworks);
+  const [show, setShow] = useState(!!result.fireworks || !!result.ending);
   const leader = CHARACTERS[fight.leader]!;
   const area = AREAS[fight.area];
   const joined = result.joined ? CHARACTERS[result.joined] : null;
@@ -497,12 +449,12 @@ function Results({ fight, result, report, hints, onAgain, onClose }: { fight: Fi
   if (result.xp) rows.push({ icon: '★', text: `+${result.xp} XP for everyone in the squad` });
   for (const l of result.levelUps) rows.push({ icon: '▲', text: `${CHARACTERS[l.charId]?.name} reached Lv ${l.level}` });
   const nextArea = AREA_ORDER[AREA_ORDER.indexOf(area.id) + 1];
-  if (result.claimed && nextArea && !AREAS[nextArea].secret) rows.push({ icon: '🚇', text: `${AREAS[nextArea].name} is open on the map.` });
+  if (result.claimed && nextArea) rows.push({ icon: '🚇', text: `${AREAS[nextArea].name} is open on the map.` });
   if (result.claimed && area.id === 'wanhua') rows.push({ icon: '盆', text: 'Cash-out 金盆洗手 is open in the Office.' });
 
   return (
     <div className="turf-scroll result" data-outcome={result.outcome}>
-      {show && <Fireworks full={result.fireworks === 'full'} onClose={() => setShow(false)} />}
+      {show && (result.ending ? <NewTaipeiCelebration full={result.ending === 'full'} onClose={() => setShow(false)} /> : <Fireworks full={result.fireworks === 'full'} onClose={() => setShow(false)} />)}
       <div className="stamp" aria-hidden>
         {win ? '勝' : '敗'}
       </div>

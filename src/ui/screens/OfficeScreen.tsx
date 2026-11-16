@@ -72,7 +72,7 @@ function devOptimizeStaff(): string {
 /** Dev only: puts a street event at the next open station, cycling through them, to check bubble placement. */
 function devStreetEvent(): string {
   const st = store.get();
-  const open = AREA_ORDER.filter((a) => a !== 'xindian' && isAreaOpen(st, a));
+  const open = AREA_ORDER.filter((a) => isAreaOpen(st, a));
   const next = open[(open.indexOf(st.event?.area ?? open[open.length - 1]!) + 1) % open.length]!;
   const kinds: EventKind[] = ['procession', 'recruit', 'scratch', 'tip'];
   const kind = kinds[Math.floor(Math.random() * kinds.length)]!;

@@ -2,6 +2,7 @@ import type { CategoryDef } from '../types';
 
 /** Business categories. LED bitmaps are code-drawn fallbacks until PixelLab icons exist. */
 export const CATEGORIES: Record<string, CategoryDef> = {
+  commuter_home: { id: 'commuter_home', name: 'Commuter Homes', nameZh: '通勤住宅', tag: 'night' },
   food_stall: {
     id: 'food_stall',
     name: 'Food Stall',

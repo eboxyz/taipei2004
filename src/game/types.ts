@@ -242,6 +242,8 @@ export interface GameState {
     runs: number;
     /** Times Xinyi has been claimed (Chapter 1 clears). */
     chapterClears: number;
+    /** Secret chapter completions across runs. */
+    xindianClears: number;
     /** Face upgrade levels by id. */
     upgrades: Record<string, number>;
     /** Areas ever claimed, in any run. */

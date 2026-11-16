@@ -385,6 +385,8 @@ export interface FightResult {
   indexJump: number;
   /** Claiming Xinyi: 'full' fireworks the first time, 'short' after. */
   fireworks: 'full' | 'short' | null;
+  /** First secret clear / repeat clear; rematches never replay it. */
+  ending: 'full' | 'short' | null;
   binderPages: FactionId[];
   incense: number;
   lottery: number;
@@ -419,6 +421,7 @@ export function resolveFight(state: GameState, fightId: string, outcome: 'win' |
     underdog: false,
     indexJump: 0,
     fireworks: null,
+    ending: null,
     binderPages: [],
     incense: 0,
     lottery: 0,
@@ -467,6 +470,11 @@ export function resolveFight(state: GameState, fightId: string, outcome: 'win' |
     result.indexJump = CLAIM_INDEX * perk.indexMult(state);
     const claimedEver = s.meta.claimedEver.includes(fight.area) ? s.meta.claimedEver : [...s.meta.claimedEver, fight.area];
     let chapterClears = s.meta.chapterClears;
+    let xindianClears = s.meta.xindianClears;
+    if (fight.area === 'xindian') {
+      result.ending = xindianClears === 0 ? 'full' : 'short';
+      xindianClears += 1;
+    }
     if (fight.area === 'xinyi') {
       result.fireworks = chapterClears === 0 ? 'full' : 'short';
       chapterClears += 1;
@@ -475,10 +483,11 @@ export function resolveFight(state: GameState, fightId: string, outcome: 'win' |
       ...s,
       index: s.index + result.indexJump,
       run: { ...s.run, claims: s.run.claims + 1 },
-      meta: { ...s.meta, claimedEver, chapterClears },
+      meta: { ...s.meta, claimedEver, chapterClears, xindianClears },
     };
   }
   result.lotsUnlocked = AREAS[fight.area].lots.filter((l) => l.lock === fight.key).map((l) => l.id);
+  if (fight.area === 'xindian' && fight.key === 'lt2') result.lotsUnlocked.push(...Object.values(ALL_LOTS).filter((l) => l.lock === 'xiaoxiao').map((l) => l.id));
   // The leader joins your crew; beating them again in a later run counts as a duplicate (+1 star).
   const added = addCard(s, fight.leader);
   s = added.state;

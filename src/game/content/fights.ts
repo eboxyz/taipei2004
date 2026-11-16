@@ -43,6 +43,7 @@ export const MATCHUPS: Partial<Record<AreaId, { style: SquadStyle; text: string 
   ximending: { style: 'defense', text: 'Molong Society rushes with fast, fragile scooter crews. Try Defensive: a sturdy front and hit-all skills help handle the rush.' },
   zhongshan: { style: 'balanced', text: 'Yuejian Society charms your crew and heals her staff. Try All-around to keep damage in the army with steady commander support; stuns can help too.' },
   east: { style: 'offense', text: 'Jin Tangchi Group shelters behind shielded bodyguards. Try Offensive to keep your hitters attacking, with a scrivener helping strip defenses.' },
+  xindian: { style: 'defense', text: 'Xiaoxiao charges its agents’ skills quickly. Try Defensive to keep your front standing through the paperwork.' },
   xinyi: { style: 'offense', text: 'Tongtian Development gains a permit buff every 15 seconds. Try Offensive to keep damage on the field and finish before the buffs build up.' },
 };
 
@@ -290,6 +291,30 @@ Object.assign(FIGHTS, {
     unlockSlots: 0,
     intro: 'Chairman Tian-dong is building the tallest tower in the world, and he has friends in every office that matters.',
     tip: 'Permits make his army 5% stronger every 15 s. Win fast: bring your hardest hitters and skip the slow builds.',
+  },
+  xindian_lt1: {
+    id: 'xindian_lt1', area: 'xindian', key: 'lt1', leader: 'xiaoxiao_agent',
+    units: [g(38, 0, 3.2, { name: 'Branch Guard', nameZh: '分店警衛' }), g(38, 1, 3.2, { name: 'Branch Guard', nameZh: '分店警衛' }), { id: 'xiaoxiao_agent', level: 38, slot: 2 }, { id: 'intern', level: 37, slot: 3, grunt: true, name: 'Branch Clerk', nameZh: '分店職員' }, { id: 'intern', level: 37, slot: 4, grunt: true, name: 'Branch Clerk', nameZh: '分店職員' }],
+    timeLimit: 75, recommended: 5800, strength: 4.6,
+    rewards: { incense: 25, lottery: 0 }, unlockSlots: 0,
+    intro: 'The smiling agent from your street tips has one last offer.',
+    tip: 'Keep a sturdy front and hit the back-row clerks with skills.',
+  },
+  xindian_lt2: {
+    id: 'xindian_lt2', area: 'xindian', key: 'lt2', leader: 'a_yin',
+    units: [g(40, 0, 3.4, { name: 'Head Office Guard', nameZh: '總部警衛' }), g(40, 1, 3.4, { name: 'Head Office Guard', nameZh: '總部警衛' }), { id: 'a_yin', level: 40, slot: 2 }, { id: 'intern', level: 39, slot: 3, grunt: true, name: 'Contract Clerk', nameZh: '合約職員' }, { id: 'xiaoxiao_agent', level: 39, slot: 5 }],
+    timeLimit: 75, recommended: 5900, strength: 3.762,
+    rewards: { incense: 25, lottery: 1 }, unlockSlots: 0,
+    intro: 'A-Yin has a stamp for every objection.',
+    tip: 'His stamps strip defenses. Hit-all attacks can reach the paperwork behind the guards.',
+  },
+  xindian_boss: {
+    id: 'xindian_boss', area: 'xindian', key: 'boss', leader: 'xiao_dong',
+    units: [g(44, 0, 3.6, { name: 'Head Office Guard', nameZh: '總部警衛' }), g(44, 1, 3.6, { name: 'Head Office Guard', nameZh: '總部警衛' }), { id: 'a_yin', level: 43, slot: 2 }, { id: 'intern', level: 43, slot: 3, grunt: true, name: 'Contract Clerk', nameZh: '合約職員' }, { id: 'xiaoxiao_agent', level: 43, slot: 4 }, { id: 'xiao_dong', level: 44, slot: 6 }],
+    timeLimit: 120, recommended: 6050, strength: 3.219,
+    rewards: { incense: 50, lottery: 3 }, unlockSlots: 0,
+    intro: 'Xiao-dong owns the chain. Every smile was business.',
+    tip: 'Closing Time charges the agents’ skills. Bring damage and stuns before the next round of paperwork.',
   },
 } satisfies Record<string, FightDef>);
 
